@@ -6,4 +6,4 @@ import { BusinessesService } from './services/business.service';
   controllers: [BusinessesController],
   providers: [BusinessesService],
 })
-export class BusinessesModule {} // ¡Aquí está el nombre que app.module.ts estaba buscando!
+export class BusinessesModule {}

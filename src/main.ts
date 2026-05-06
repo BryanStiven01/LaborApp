@@ -16,7 +16,7 @@ async function bootstrap() {
 
   const config = new DocumentBuilder()
     .setTitle('API de AutoSale')
-    .setDescription('API para la gestión de vehículos en AutoSale')
+    .setDescription('API para la gestión de trabajos, empleadores y trabajadores')
     .setVersion('1.0')
     .build();
 
