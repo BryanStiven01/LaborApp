@@ -1,6 +1,15 @@
-import { Controller } from '@nestjs/common';
+import { Controller, Get } from '@nestjs/common';
+import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { BusinessesService } from '../services/business.service'; // Apunta a la carpeta services
 
-// 1. Cambiamos la ruta para que tu API responda en /businesses
-@Controller('businesses') 
-// 2. Cambiamos el nombre de la clase para que el Módulo la encuentre
-export class BusinessesController {}
+@ApiTags('Businesses')
+@Controller('businesses')
+export class BusinessesController {
+  constructor(private readonly businessesService: BusinessesService) {}
+
+  @Get()
+  @ApiOperation({ summary: 'Listar todas las empresas o empleadores registrados' })
+  findAll() {
+    return this.businessesService.findAll();
+  }
+}
