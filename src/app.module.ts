@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuthModule } from './auth/auth.modules';
 
 // 1. Importamos tus módulos existentes
 import { JobsModule } from './modules/jobs/jobs.module';
@@ -27,8 +28,11 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
       autoLoadEntities: true, // Esto cargará automáticamente las nuevas tablas (Profiles, Applications, etc.)
       synchronize: true,      // Sincroniza tu código con la DB en tiempo real
     }),
+    
+   
 
     // Registramos todos los módulos del sistema LaborApps
+    AuthModule,
     UsersModule,
     JobsModule,
     BusinessesModule,
@@ -39,3 +43,4 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
   providers: [],
 })
 export class AppModule {}
+
