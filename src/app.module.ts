@@ -11,6 +11,7 @@ import { BusinessesModule } from './modules/businesses/business.module';
 // 2. IMPORTANTE: Agregamos los módulos de soporte para cumplir con la defensa
 import { RatingsModule } from './modules/ratings/ratings.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { SectorModule } from './modules/sector/sector.module';
 
 @Module({
   imports: [
@@ -37,7 +38,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     JobsModule,
     BusinessesModule,
     RatingsModule,      // <-- Agregado para el sistema de reputación
-    NotificationsModule, // <-- Agregado para el sistema de alertas
+    NotificationsModule, SectorModule, // <-- Agregado para el sistema de alertas
   ],
   controllers: [],
   providers: [],
