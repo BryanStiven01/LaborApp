@@ -1,24 +1,35 @@
-import { Controller, Get, Post, Body } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Query } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { JobsService } from './jobs.service';
 
-@ApiTags('Jobs') // Para que se agrupe bonito en tu Swagger
+@ApiTags('Jobs')
 @Controller('jobs')
 export class JobsController {
   constructor(private readonly jobsService: JobsService) {}
 
-  @Get()
-  @ApiOperation({ summary: 'Obtener todos los empleos' })
-  findAll() {
-    return this.jobsService.findAll();
-  }
-
+  // ==========================================
+  // 1. ENDPOINTS DE EMPLEOS (Ruta base: /jobs)
+  // ==========================================
   @Post()
   @ApiOperation({ summary: 'Publicar un nuevo empleo' })
   create(@Body() createJobDto: any) {
     return this.jobsService.create(createJobDto);
   }
 
+  @Get()
+  @ApiOperation({ summary: 'Obtener todos los empleos con opción de filtrado geográfico' })
+  @ApiQuery({ name: 'department', required: false, description: 'Filtrar por departamento (ej: Zelaya Central)' })
+  @ApiQuery({ name: 'municipality', required: false, description: 'Filtrar por municipio (ej: Nueva Guinea)' })
+  findAll(
+    @Query('department') department?: string,
+    @Query('municipality') municipality?: string,
+  ) {
+    return this.jobsService.findAll(department, municipality);
+  }
+
+  // ====================================================
+  // 2. ENDPOINTS DE CATEGORÍAS (Ruta: /jobs/categories)
+  // ====================================================
   @Get('categories')
   @ApiOperation({ summary: 'Obtener todas las categorías de empleos' })
   findAllCategories() {

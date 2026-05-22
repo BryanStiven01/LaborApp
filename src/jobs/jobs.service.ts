@@ -14,14 +14,34 @@ export class JobsService {
     private readonly categoryRepository: Repository<JobCategory>,
   ) {}
 
-  // --- MÉTODOS DE EMPLEOS ---
-  async findAll() {
-    return await this.jobRepository.find({ relations: ['category', 'employer', 'business'] });
+  // --- MÉTODOS DE EMPLEOS (Con soporte de filtrado geográfico) ---
+  async findAll(department?: string, municipality?: string) {
+    const query = this.jobRepository.createQueryBuilder('job')
+      .leftJoinAndSelect('job.category', 'category')
+      .leftJoinAndSelect('job.employer', 'employer')
+      .leftJoinAndSelect('job.business', 'business');
+
+    if (department) {
+      query.andWhere('employer.department = :department', { department });
+    }
+
+    if (municipality) {
+      query.andWhere('employer.municipality = :municipality', { municipality });
+    }
+
+    query.orderBy('job.createdAt', 'DESC');
+
+    return await query.getMany();
   }
 
   async create(createJobDto: any) {
-    const newJob = this.jobRepository.create(createJobDto);
-    return await this.jobRepository.save(newJob);
+    try {
+      const newJob = this.jobRepository.create(createJobDto);
+      return await this.jobRepository.save(newJob);
+    } catch (error) {
+      console.error('🔴 ERROR AL CREAR EMPLEO:', error);
+      throw error;
+    }
   }
 
   // --- MÉTODOS DE CATEGORÍAS ---
@@ -30,7 +50,13 @@ export class JobsService {
   }
 
   async createCategory(createCategoryDto: any) {
-    const newCategory = this.categoryRepository.create(createCategoryDto);
-    return await this.categoryRepository.save(newCategory);
+    try {
+      const newCategory = this.categoryRepository.create(createCategoryDto);
+      return await this.categoryRepository.save(newCategory);
+    } catch (error) {
+      // Esto nos va a imprimir el error real en tu Git Bash para saber qué pasa por debajo
+      console.error('🔴 ERROR REAL EN CATEGORÍAS:', error);
+      throw error;
+    }
   }
 }

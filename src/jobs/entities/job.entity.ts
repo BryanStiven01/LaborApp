@@ -5,8 +5,8 @@ import { JobCategory } from './job-category.entity';
 
 @Entity('jobs')
 export class Job {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn() // Cambiado a secuencial numérico (1, 2, 3...)
+  id: number;
 
   @Column({ type: 'varchar', length: 150 })
   title: string;
@@ -20,7 +20,7 @@ export class Job {
   @Column({ type: 'varchar', default: 'Open' }) // Open, Closed, In_Progress
   status: string;
 
-  // Relación con el creador/empleador
+  // Relación con el creador/empleador (ID numérico)
   @ManyToOne(() => User)
   @JoinColumn({ name: 'employer_id' })
   employer: User;
@@ -30,7 +30,7 @@ export class Job {
   @JoinColumn({ name: 'business_id' })
   business?: Business;
 
-  // Relación con la categoría de empleo
+  // Relación con la categoría de empleo (ID numérico)
   @ManyToOne(() => JobCategory, (category) => category.jobs, { onDelete: 'SET NULL' })
   @JoinColumn({ name: 'category_id' })
   category: JobCategory;
