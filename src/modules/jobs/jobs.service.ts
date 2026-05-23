@@ -1,8 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Job } from './entities/job.entity';
 import { JobCategory } from './entities/job-category.entity';
+import { CreateJobDto } from './dto/create-job.dto'; // Importamos tu DTO
 
 @Injectable()
 export class JobsService {
@@ -34,13 +35,22 @@ export class JobsService {
     return await query.getMany();
   }
 
-  async create(createJobDto: any) {
+  async create(createJobDto: CreateJobDto) { // Tipado con tu CreateJobDto
     try {
-      const newJob = this.jobRepository.create(createJobDto);
+      const { employerId, categoryId, businessId, ...jobData } = createJobDto;
+
+      // Mapeamos los IDs numéricos a la estructura que TypeORM necesita para las relaciones
+      const newJob = this.jobRepository.create({
+        ...jobData,
+        employer: { id: employerId }, // TypeORM entiende esto automáticamente como la FK
+        category: { id: categoryId },
+        business: businessId ? { id: businessId } : null, // Opcional por si es independiente
+      });
+
       return await this.jobRepository.save(newJob);
     } catch (error) {
       console.error('🔴 ERROR AL CREAR EMPLEO:', error);
-      throw error;
+      throw new BadRequestException('No se pudo crear la oferta de empleo. Verifique los IDs relacionales.');
     }
   }
 
@@ -54,9 +64,8 @@ export class JobsService {
       const newCategory = this.categoryRepository.create(createCategoryDto);
       return await this.categoryRepository.save(newCategory);
     } catch (error) {
-      // Esto nos va a imprimir el error real en tu Git Bash para saber qué pasa por debajo
       console.error('🔴 ERROR REAL EN CATEGORÍAS:', error);
-      throw error;
+      throw new BadRequestException('Error al crear la categoría. Asegúrese de que el nombre sea único.');
     }
   }
 }

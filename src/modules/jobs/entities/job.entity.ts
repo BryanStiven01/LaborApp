@@ -5,7 +5,7 @@ import { JobCategory } from './job-category.entity';
 
 @Entity('jobs')
 export class Job {
-  @PrimaryGeneratedColumn() // Cambiado a secuencial numérico (1, 2, 3...)
+  @PrimaryGeneratedColumn()
   id: number;
 
   @Column({ type: 'varchar', length: 150 })

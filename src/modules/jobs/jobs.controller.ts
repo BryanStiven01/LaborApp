@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Body, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { JobsService } from './jobs.service';
+import { CreateJobDto } from './dto/create-job.dto'; // Importamos tu nuevo DTO
 
 @ApiTags('Jobs')
 @Controller('jobs')
@@ -12,7 +13,7 @@ export class JobsController {
   // ==========================================
   @Post()
   @ApiOperation({ summary: 'Publicar un nuevo empleo' })
-  create(@Body() createJobDto: any) {
+  create(@Body() createJobDto: CreateJobDto) { // Cambiado 'any' por 'CreateJobDto'
     return this.jobsService.create(createJobDto);
   }
 
@@ -38,7 +39,8 @@ export class JobsController {
 
   @Post('categories')
   @ApiOperation({ summary: 'Crear una nueva categoría de empleo' })
-  createCategory(@Body() createCategoryDto: any) {
+  createCategory(@Body() createCategoryDto: any) { 
+    // Nota: Si luego creas un DTO para categorías, puedes cambiar este 'any' también.
     return this.jobsService.createCategory(createCategoryDto);
   }
 }

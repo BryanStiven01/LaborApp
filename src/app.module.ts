@@ -4,7 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.modules';
 
 // 1. Importamos modulos
-import { JobsModule } from './jobs/jobs.module';
+import { JobsModule } from './modules/jobs/jobs.module';
 import { UsersModule } from './modules/users/users.module';
 import { BusinessesModule } from './modules/businesses/business.module';
 
