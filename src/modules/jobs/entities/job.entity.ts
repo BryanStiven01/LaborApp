@@ -1,6 +1,6 @@
 import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
-import { User } from '../../modules/users/entities/user.entity';
-import { Business } from '../../modules/businesses/entities/business.entity';
+import { User } from '../../users/entities/user.entity';
+import { Business } from '../../businesses/entities/business.entity';
 import { JobCategory } from './job-category.entity';
 
 @Entity('jobs')
