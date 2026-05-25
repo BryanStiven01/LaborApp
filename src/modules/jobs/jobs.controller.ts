@@ -1,7 +1,8 @@
-import { Controller, Get, Post, Body, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { JobsService } from './jobs.service';
 import { CreateJobDto } from './dto/create-job.dto'; // Importamos tu nuevo DTO
+import { JwtAuthGuard } from '../../auth/jwt-auth.guard'; // 1. Importamos tu nuevo Guard
 
 @ApiTags('Jobs')
 @Controller('jobs')
@@ -12,7 +13,8 @@ export class JobsController {
   // 1. ENDPOINTS DE EMPLEOS (Ruta base: /jobs)
   // ==========================================
   @Post()
-  @ApiOperation({ summary: 'Publicar un nuevo empleo' })
+  @UseGuards(JwtAuthGuard) // 2. Ponemos el candado aquí: Solo logueados pueden publicar
+  @ApiOperation({ summary: 'Publicar un nuevo empleo (Requiere Autenticación)' })
   create(@Body() createJobDto: CreateJobDto) { // Cambiado 'any' por 'CreateJobDto'
     return this.jobsService.create(createJobDto);
   }
