@@ -1,6 +1,6 @@
 import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
-import { Job } from '../../../jobs/entities/job.entity';
+import { Job } from '../../jobs/entities/job.entity';
 
 @Entity('ratings') // [cite: 92]
 export class Rating {

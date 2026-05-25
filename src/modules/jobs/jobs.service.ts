@@ -35,22 +35,24 @@ export class JobsService {
     return await query.getMany();
   }
 
-  async create(createJobDto: CreateJobDto) { // Tipado con tu CreateJobDto
+  async create(createJobDto: CreateJobDto) {
     try {
-      const { employerId, categoryId, businessId, ...jobData } = createJobDto;
+      // 1. Sacamos el salary del DTO junto a los otros IDs
+      const { employerId, categoryId, businessId, salary, ...jobData } = createJobDto;
 
-      // Mapeamos los IDs numéricos a la estructura que TypeORM necesita para las relaciones
       const newJob = this.jobRepository.create({
         ...jobData,
-        employer: { id: employerId }, // TypeORM entiende esto automáticamente como la FK
+        // 2. Convertimos el salary a número usando Number() para que TypeScript no se queje
+        salary: salary ? Number(salary) : null, 
+        employer: { id: employerId },
         category: { id: categoryId },
-        business: businessId ? { id: businessId } : null, // Opcional por si es independiente
-      });
+        business: businessId ? { id: businessId } : null,
+      } as unknown as Job); // 3. Le aseguramos a TypeORM que este objeto cumple con la entidad Job
 
       return await this.jobRepository.save(newJob);
     } catch (error) {
       console.error('🔴 ERROR AL CREAR EMPLEO:', error);
-      throw new BadRequestException('No se pudo crear la oferta de empleo. Verifique los IDs relacionales.');
+      throw error;
     }
   }
 
