@@ -1,29 +1,33 @@
-import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { IsInt, IsNotEmpty, IsOptional, IsString, Length, Matches } from 'class-validator';
 
 export class CreateMessageDto {
-  @ApiProperty({ description: 'ID del usuario que envía el mensaje', example: 1 })
-  @IsNumber()
+  @ApiProperty({ example: 1, description: 'ID del usuario que envía el mensaje (Candidato)' })
+  @IsInt()
   @IsNotEmpty()
   senderId: number;
 
-  @ApiProperty({ description: 'ID del usuario que recibe el mensaje', example: 2 })
-  @IsNumber()
+  @ApiProperty({ example: 2, description: 'ID del usuario que recibe el mensaje (Empleador)' })
+  @IsInt()
   @IsNotEmpty()
   receiverId: number;
 
-  @ApiProperty({ description: 'Contenido de texto del mensaje', example: 'Hola, vi tu vacante y me interesa el puesto.' })
+  @ApiProperty({ 
+    example: 'Hola, vi su anuncio. Tengo experiencia en mantenimiento.', 
+    description: 'Contenido del mensaje inicial' 
+  })
   @IsString()
   @IsNotEmpty()
+  @Length(5, 500)
   content: string;
 
-  @ApiProperty({ description: 'Teléfono opcional para contacto directo', example: '+50588888888', required: false })
+  @ApiProperty({ 
+    example: '88888888', 
+    description: 'Número telefónico sin código de país (opcional para generar la redirección wa.me)', 
+    required: false 
+  })
   @IsString()
   @IsOptional()
+  @Matches(/^[0-9]{8}$/, { message: 'El número debe tener exactamente 8 dígitos (formato local)' })
   phoneContact?: string;
-
-  @ApiProperty({ description: 'Enlace opcional directo a WhatsApp', example: 'https://wa.me/50588888888', required: false })
-  @IsString()
-  @IsOptional()
-  whatsappLink?: string;
 }

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsString, Length, IsEnum } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString, Length } from 'class-validator';
 
 export class CreateUserDto {
   @ApiProperty({ 
@@ -12,7 +12,7 @@ export class CreateUserDto {
 
   @ApiProperty({ 
     example: 'ContraseñaSegura123', 
-    description: 'Contraseña en texto plano (se aplicará hash SHA-256 en la base de datos)' 
+    description: 'Contraseña en texto plano' 
   })
   @IsString()
   @IsNotEmpty()
@@ -21,7 +21,7 @@ export class CreateUserDto {
 
   @ApiProperty({ 
     example: 'Worker', 
-    description: 'Rol del usuario dentro del sistema: Admin, Employer o Worker' 
+    description: 'Rol del usuario: Admin, Employer o Worker' 
   })
   @IsString()
   @IsNotEmpty()
@@ -29,7 +29,7 @@ export class CreateUserDto {
 
   @ApiProperty({ 
     example: 'Zelaya Central', 
-    description: 'Departamento para el algoritmo de filtrado geográfico' 
+    description: 'Departamento para el filtro geográfico' 
   })
   @IsString()
   @IsNotEmpty()
@@ -37,7 +37,7 @@ export class CreateUserDto {
 
   @ApiProperty({ 
     example: 'Nueva Guinea', 
-    description: 'Municipio de residencia para la conexión de ofertas locales' 
+    description: 'Municipio de residencia' 
   })
   @IsString()
   @IsNotEmpty()

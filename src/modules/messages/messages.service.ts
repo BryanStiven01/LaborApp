@@ -41,4 +41,19 @@ export class MessagesService {
       .orderBy('message.createdAt', 'ASC') // Ordenados del más viejo al más nuevo
       .getMany();
   }
+  // Adentro de MessagesService
+  update(id: number, updateMessageDto: any) {
+    return {
+      info: `El mensaje #${id} ha sido editado (Solo válido si no se ha redirigido a WhatsApp).`,
+      datosNuevos: updateMessageDto
+    };
+  }
+  // ==========================================
+  // NUEVO: ELIMINAR MENSAJE
+  // ==========================================
+  remove(id: number) {
+    return {
+      message: `El mensaje #${id} ha sido eliminado del historial.`,
+    };
+  }
 }

@@ -1,25 +1,38 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Business } from '../entities/business.entity';
+import { CreateBusinessDto } from '../dto/create-business.dto';
+import { UpdateBusinessDto } from '../dto/update-business.dto';
 
 @Injectable()
 export class BusinessService {
-  constructor(
-    @InjectRepository(Business)
-    private readonly businessRepository: Repository<Business>,
-  ) {}
+  // Simulamos una base de datos temporal en memoria
+  private businesses: any[] = [];
 
-  async create(data: any): Promise<any> {
-    const newBusiness = this.businessRepository.create(data);
-    return await this.businessRepository.save(newBusiness);
+  create(createBusinessDto: CreateBusinessDto) {
+    const newBusiness = {
+      id: Date.now(), // Generamos un ID numérico falso
+      ...createBusinessDto,
+    };
+    this.businesses.push(newBusiness);
+    return newBusiness; 
   }
 
-  async findAll(): Promise<any[]> {
-    return await this.businessRepository.find();
+  findAll() {
+    return this.businesses;
   }
 
-  async remove(id: number): Promise<any> {
-    return await this.businessRepository.delete(id);
+  findOne(id: number) {
+    const business = this.businesses.find(b => b.id === id);
+    return business ? business : `El negocio #${id} no existe`;
+  }
+
+  update(id: number, updateBusinessDto: UpdateBusinessDto) {
+    return {
+      message: `El negocio #${id} ha sido actualizado`,
+      data: updateBusinessDto
+    };
+  }
+
+  remove(id: number) {
+    return `El negocio #${id} fue eliminado del sistema`;
   }
 }

@@ -1,8 +1,9 @@
-import { Controller, Get, Post, Body, Query, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Query, Delete, UseGuards, Patch, Param } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiQuery, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
 import { JobsService } from './jobs.service';
-import { CreateJobDto } from './dto/create-job.dto'; // Importamos tu nuevo DTO
-import { JwtAuthGuard } from '../../auth/jwt-auth.guard'; // 1. Importamos tu nuevo Guard
+import { CreateJobDto } from './dto/create-job.dto'; 
+import { UpdateJobDto } from './dto/update-job.dto';
+import { JwtAuthGuard } from '../../auth/jwt-auth.guard'; 
 
 @ApiTags('Jobs')
 @Controller('jobs')
@@ -13,9 +14,11 @@ export class JobsController {
   // 1. ENDPOINTS DE EMPLEOS (Ruta base: /jobs)
   // ==========================================
   @Post()
-  @UseGuards(JwtAuthGuard) // 2. Ponemos el candado aquí: Solo logueados pueden publicar
+  @UseGuards(JwtAuthGuard) 
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Publicar un nuevo empleo (Requiere Autenticación)' })
-  create(@Body() createJobDto: CreateJobDto) { // Cambiado 'any' por 'CreateJobDto'
+  @ApiResponse({ status: 201, description: 'Empleo publicado exitosamente.' })
+  create(@Body() createJobDto: CreateJobDto) { 
     return this.jobsService.create(createJobDto);
   }
 
@@ -30,6 +33,27 @@ export class JobsController {
     return this.jobsService.findAll(department, municipality);
   }
 
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Actualizar un anuncio de empleo existente (Requiere Autenticación)' })
+  @ApiParam({ name: 'id', description: 'ID numérico del anuncio de trabajo a modificar', example: 1 })
+  @ApiResponse({ status: 200, description: 'Anuncio actualizado correctamente.' })
+  @ApiResponse({ status: 404, description: 'No se encontró el anuncio especificado.' })
+  update(@Param('id') id: string, @Body() updateJobDto: UpdateJobDto) {
+    return this.jobsService.update(+id, updateJobDto); 
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Eliminar una publicación de empleo (Requiere Autenticación)' })
+  @ApiParam({ name: 'id', description: 'ID numérico del empleo a eliminar' })
+  @ApiResponse({ status: 200, description: 'Empleo eliminado exitosamente.' })
+  remove(@Param('id') id: string) {
+    return this.jobsService.remove(+id);
+  }
+
   // ====================================================
   // 2. ENDPOINTS DE CATEGORÍAS (Ruta: /jobs/categories)
   // ====================================================
@@ -42,7 +66,6 @@ export class JobsController {
   @Post('categories')
   @ApiOperation({ summary: 'Crear una nueva categoría de empleo' })
   createCategory(@Body() createCategoryDto: any) { 
-    // Nota: Si luego creas un DTO para categorías, puedes cambiar este 'any' también.
     return this.jobsService.createCategory(createCategoryDto);
   }
 }

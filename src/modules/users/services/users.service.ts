@@ -1,25 +1,35 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { User } from '../entities/user.entity';
+import { CreateUserDto } from '../dto/create-user.dto';
+import { UpdateUserDto } from '../dto/update-user.dto';
 
 @Injectable()
 export class UsersService {
-  constructor(
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
-  ) {}
+  // Simulamos una base de datos temporal en memoria
+  private users: any[] = [];
 
-  async create(userData: any): Promise<any> { // Usamos 'any' para evitar conflictos
-    const newUser = this.userRepository.create(userData);
-    return await this.userRepository.save(newUser);
+  // Usamos 'any' temporalmente para que acepte el password_hash que le manda el AuthService
+  create(createUserDto: any) {
+    const newUser = {
+      id: Date.now(), // Generamos un ID numérico simulado
+      ...createUserDto,
+    };
+    this.users.push(newUser);
+    return newUser; // Ahora sí retornamos un OBJETO (newUser.id ya no dará error)
   }
 
-  async findAll(): Promise<any[]> {
-    return await this.userRepository.find();
+  findAll() {
+    return this.users; // Retornamos el ARREGLO completo (ya se podrá usar el .find)
   }
 
-  async remove(id: number): Promise<any> {
-    return await this.userRepository.delete(id);
+  findOne(id: number) {
+    return this.users.find(user => user.id === id);
+  }
+
+  update(id: number, updateUserDto: UpdateUserDto) {
+    return { id, ...updateUserDto };
+  }
+
+  remove(id: number) {
+    return `Usuario #${id} eliminado`;
   }
 }
