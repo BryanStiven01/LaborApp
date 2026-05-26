@@ -51,6 +51,7 @@ src/app.module.ts
 src/auth/auth.controller.ts
 src/auth/auth.modules.ts
 src/auth/auth.service.ts
+src/auth/jwt-auth.guard.ts
 src/main.ts
 src/modules/businesses/business.module.ts
 src/modules/businesses/controllers/businesses.controller.ts
@@ -215,18 +216,11 @@ export default tseslint.config(
 </file>
 
 <file path="src/auth/auth.controller.ts">
-import { Controller, Post, Body } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiProperty } from '@nestjs/swagger';
+import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
+import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-
-// Clase para que Swagger sepa qué pedir
-class LoginDto {
-  @ApiProperty({ example: 'admin@laborapps.com' })
-  email!: string;
-
-  @ApiProperty({ example: '123456' })
-  password!: string;
-}
+import { LoginDto } from './dto/login.dto';         // CORREGIDO: Ruta exacta
+import { RegisterDto } from './dto/register.dto';   // CORREGIDO: Ruta exacta
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -234,9 +228,16 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('login')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Iniciar sesión en la plataforma' })
   async login(@Body() credentials: LoginDto) {
     return this.authService.login(credentials);
+  }
+
+  @Post('register')
+  @ApiOperation({ summary: 'Registrar un nuevo usuario' })
+  async register(@Body() registerDto: RegisterDto) {
+    return this.authService.register(registerDto);
   }
 }
 </file>
@@ -254,24 +255,111 @@ export class AuthModule {}
 </file>
 
 <file path="src/auth/auth.service.ts">
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import { UsersService } from '../modules/users/services/users.service'; // Ruta exacta de tu proyecto
+import { RegisterDto } from './dto/register.dto';
+import * as crypto from 'crypto'; // Librería nativa de Node.js para cifrado
 
 @Injectable()
 export class AuthService {
-  // Simulación de login sencillo
-  login(body: any) {
-    const { email, password } = body;
+  constructor(private readonly usersService: UsersService) {}
 
-    // Aquí puedes poner tu correo para la prueba
-    if (email === 'admin@laborapps.com' && password === '123456') {
-      return {
-        message: '¡Bienvenido a LaborApps!',
-        user: { email, role: 'Admin' },
-        token: 'simulated-jwt-token-123'
-      };
+  // ==========================================
+  // LÓGICA DE REGISTRO CON ALMACENAMIENTO CIFRADO
+  // ==========================================
+  async register(registerDto: RegisterDto) {
+    const { email, password, role } = registerDto;
+
+    // 1. Verificar si el correo ya existe en PostgreSQL
+    const users = await this.usersService.findAll();
+    const userExists = users.find((u: any) => u.email === email);
+    
+    if (userExists) {
+      throw new BadRequestException('El correo electrónico ya se encuentra registrado.');
     }
 
-    throw new UnauthorizedException('Credenciales incorrectas');
+    // 2. Cifrar la contraseña usando un Hash SHA-256 seguro
+    const passwordHash = crypto.createHash('sha256').update(password).digest('hex');
+
+    // 3. Crear y guardar el usuario en la base de datos real
+    const newUser = await this.usersService.create({
+      email,
+      password_hash: passwordHash, // Guardamos la contraseña cifrada
+      role,
+      department: 'Zelaya Central', // Valores iniciales obligatorios por la entidad User
+      municipality: 'Nueva Guinea'
+    });
+
+    return {
+      message: 'Usuario registrado exitosamente de forma segura.',
+      user: {
+        id: newUser.id,
+        email: newUser.email,
+        role: newUser.role,
+      },
+    };
+  }
+
+  // ==========================================
+  // LÓGICA DE LOGIN CON VERIFICACIÓN CIFRADA
+  // ==========================================
+  async login(body: any) {
+    const { email, password } = body;
+
+    // 1. Buscamos el usuario en la base de datos real
+    const users = await this.usersService.findAll();
+    const user = users.find((u: any) => u.email === email);
+
+    if (!user) {
+      throw new UnauthorizedException('Credenciales incorrectas');
+    }
+
+    // 2. Ciframos la contraseña entrante para compararla con el hash guardado en la DB
+    const inputHash = crypto.createHash('sha256').update(password).digest('hex');
+
+    if (user.password_hash !== inputHash) {
+      throw new UnauthorizedException('Credenciales incorrectas');
+    }
+
+    return {
+      message: '¡Bienvenido a LaborApps!',
+      user: { 
+        id: user.id,
+        email: user.email, 
+        role: user.role 
+      },
+      token: 'simulated-jwt-token-123' // Mantiene compatibilidad con el JwtAuthGuard actual
+    };
+  }
+}
+</file>
+
+<file path="src/auth/jwt-auth.guard.ts">
+import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import { Observable } from 'rxjs';
+
+@Injectable()
+export class JwtAuthGuard implements CanActivate {
+  canActivate(
+    context: ExecutionContext,
+  ): boolean | Promise<boolean> | Observable<boolean> {
+    const request = context.switchToHttp().getRequest();
+    const authHeader = request.headers.authorization;
+
+    // 1. Verificar si viene el header Authorization
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      throw new UnauthorizedException('No autorizado. Debe proporcionar un token Bearer válido.');
+    }
+
+    // 2. Extraer el token
+    const token = authHeader.split(' ')[1];
+
+    // 3. Validación simulada con el token del grupo
+    if (token === 'simulated-jwt-token-123' || token.length > 5) {
+      return true;
+    }
+
+    throw new UnauthorizedException('Token inválido o expirado.');
   }
 }
 </file>
@@ -381,55 +469,6 @@ export class JobCategory {
 
   @OneToMany(() => Job, (job) => job.category)
   jobs: Job[];
-}
-</file>
-
-<file path="src/modules/jobs/jobs.controller.ts">
-import { Controller, Get, Post, Body, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
-import { JobsService } from './jobs.service';
-import { CreateJobDto } from './dto/create-job.dto'; // Importamos tu nuevo DTO
-
-@ApiTags('Jobs')
-@Controller('jobs')
-export class JobsController {
-  constructor(private readonly jobsService: JobsService) {}
-
-  // ==========================================
-  // 1. ENDPOINTS DE EMPLEOS (Ruta base: /jobs)
-  // ==========================================
-  @Post()
-  @ApiOperation({ summary: 'Publicar un nuevo empleo' })
-  create(@Body() createJobDto: CreateJobDto) { // Cambiado 'any' por 'CreateJobDto'
-    return this.jobsService.create(createJobDto);
-  }
-
-  @Get()
-  @ApiOperation({ summary: 'Obtener todos los empleos con opción de filtrado geográfico' })
-  @ApiQuery({ name: 'department', required: false, description: 'Filtrar por departamento (ej: Zelaya Central)' })
-  @ApiQuery({ name: 'municipality', required: false, description: 'Filtrar por municipio (ej: Nueva Guinea)' })
-  findAll(
-    @Query('department') department?: string,
-    @Query('municipality') municipality?: string,
-  ) {
-    return this.jobsService.findAll(department, municipality);
-  }
-
-  // ====================================================
-  // 2. ENDPOINTS DE CATEGORÍAS (Ruta: /jobs/categories)
-  // ====================================================
-  @Get('categories')
-  @ApiOperation({ summary: 'Obtener todas las categorías de empleos' })
-  findAllCategories() {
-    return this.jobsService.findAllCategories();
-  }
-
-  @Post('categories')
-  @ApiOperation({ summary: 'Crear una nueva categoría de empleo' })
-  createCategory(@Body() createCategoryDto: any) { 
-    // Nota: Si luego creas un DTO para categorías, puedes cambiar este 'any' también.
-    return this.jobsService.createCategory(createCategoryDto);
-  }
 }
 </file>
 
@@ -1086,6 +1125,57 @@ export class Business {
 }
 </file>
 
+<file path="src/modules/jobs/jobs.controller.ts">
+import { Controller, Get, Post, Body, Query, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { JobsService } from './jobs.service';
+import { CreateJobDto } from './dto/create-job.dto'; // Importamos tu nuevo DTO
+import { JwtAuthGuard } from '../../auth/jwt-auth.guard'; // 1. Importamos tu nuevo Guard
+
+@ApiTags('Jobs')
+@Controller('jobs')
+export class JobsController {
+  constructor(private readonly jobsService: JobsService) {}
+
+  // ==========================================
+  // 1. ENDPOINTS DE EMPLEOS (Ruta base: /jobs)
+  // ==========================================
+  @Post()
+  @UseGuards(JwtAuthGuard) // 2. Ponemos el candado aquí: Solo logueados pueden publicar
+  @ApiOperation({ summary: 'Publicar un nuevo empleo (Requiere Autenticación)' })
+  create(@Body() createJobDto: CreateJobDto) { // Cambiado 'any' por 'CreateJobDto'
+    return this.jobsService.create(createJobDto);
+  }
+
+  @Get()
+  @ApiOperation({ summary: 'Obtener todos los empleos con opción de filtrado geográfico' })
+  @ApiQuery({ name: 'department', required: false, description: 'Filtrar por departamento (ej: Zelaya Central)' })
+  @ApiQuery({ name: 'municipality', required: false, description: 'Filtrar por municipio (ej: Nueva Guinea)' })
+  findAll(
+    @Query('department') department?: string,
+    @Query('municipality') municipality?: string,
+  ) {
+    return this.jobsService.findAll(department, municipality);
+  }
+
+  // ====================================================
+  // 2. ENDPOINTS DE CATEGORÍAS (Ruta: /jobs/categories)
+  // ====================================================
+  @Get('categories')
+  @ApiOperation({ summary: 'Obtener todas las categorías de empleos' })
+  findAllCategories() {
+    return this.jobsService.findAllCategories();
+  }
+
+  @Post('categories')
+  @ApiOperation({ summary: 'Crear una nueva categoría de empleo' })
+  createCategory(@Body() createCategoryDto: any) { 
+    // Nota: Si luego creas un DTO para categorías, puedes cambiar este 'any' también.
+    return this.jobsService.createCategory(createCategoryDto);
+  }
+}
+</file>
+
 <file path="src/modules/jobs/jobs.service.ts">
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -1284,9 +1374,17 @@ export class UsersService {
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { ValidationPipe } from '@nestjs/common'; // <-- Herramienta de validación global
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // ACTIVAR VALIDACIÓN GLOBAL: Obliga a que todas las peticiones cumplan con las reglas de los DTOs
+  app.useGlobalPipes(new ValidationPipe({
+    whitelist: true,            // Remueve propiedades que no estén explícitamente en el DTO
+    forbidNonWhitelisted: true, // Lanza un error si mandan campos de más en el JSON
+    transform: true,            // Convierte tipos automáticamente si el DTO lo requiere
+  }));
 
   const config = new DocumentBuilder()
     .setTitle('LaborApps API')
