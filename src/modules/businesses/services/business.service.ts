@@ -1,38 +1,45 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Business } from '../entities/business.entity';
 import { CreateBusinessDto } from '../dto/create-business.dto';
 import { UpdateBusinessDto } from '../dto/update-business.dto';
 
 @Injectable()
 export class BusinessService {
-  // Simulamos una base de datos temporal en memoria
-  private businesses: any[] = [];
+  constructor(
+    @InjectRepository(Business)
+    private readonly businessRepository: Repository<Business>,
+  ) {}
 
-  create(createBusinessDto: CreateBusinessDto) {
-    const newBusiness = {
-      id: Date.now(), // Generamos un ID numérico falso
-      ...createBusinessDto,
-    };
-    this.businesses.push(newBusiness);
-    return newBusiness; 
+  async create(createBusinessDto: CreateBusinessDto): Promise<Business> {
+    const { userId, companyName, address } = createBusinessDto;
+    const newBusiness = this.businessRepository.create({
+      name: companyName,
+      address: address || '',
+      tax_id: `RUC-${Date.now()}`, // Fallback dinámico temporal para el campo único
+      user: { id: userId } as any,
+    });
+    return await this.businessRepository.save(newBusiness);
   }
 
-  findAll() {
-    return this.businesses;
+  async findAll(): Promise<Business[]> {
+    return await this.businessRepository.find({ relations: ['user'] });
   }
 
-  findOne(id: number) {
-    const business = this.businesses.find(b => b.id === id);
-    return business ? business : `El negocio #${id} no existe`;
+  async findOne(id: number): Promise<Business> {
+    const business = await this.businessRepository.findOne({ where: { id }, relations: ['user'] });
+    if (!business) throw new NotFoundException(`El negocio #${id} no existe.`);
+    return business;
   }
 
-  update(id: number, updateBusinessDto: UpdateBusinessDto) {
-    return {
-      message: `El negocio #${id} ha sido actualizado`,
-      data: updateBusinessDto
-    };
+  async update(id: number, updateBusinessDto: UpdateBusinessDto) {
+    await this.businessRepository.update(id, updateBusinessDto as any);
+    return this.findOne(id);
   }
 
-  remove(id: number) {
-    return `El negocio #${id} fue eliminado del sistema`;
+  async remove(id: number) {
+    await this.businessRepository.delete(id);
+    return { message: `El negocio #${id} fue eliminado.` };
   }
 }
