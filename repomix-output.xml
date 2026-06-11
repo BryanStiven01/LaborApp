@@ -61,6 +61,12 @@ src/modules/businesses/dto/create-business.dto.ts
 src/modules/businesses/dto/update-business.dto.ts
 src/modules/businesses/entities/business.entity.ts
 src/modules/businesses/services/business.service.ts
+src/modules/job-applications/dto/create-job-application.dto.ts
+src/modules/job-applications/dto/update-job-application.dto.ts
+src/modules/job-applications/entities/job-application.entity.ts
+src/modules/job-applications/job-applications.controller.ts
+src/modules/job-applications/job-applications.module.ts
+src/modules/job-applications/job-applications.service.ts
 src/modules/jobs/dto/create-category.dto.ts
 src/modules/jobs/dto/create-job.dto.ts
 src/modules/jobs/dto/update-job.dto.ts
@@ -94,6 +100,12 @@ src/modules/users/dto/create-user.dto.ts
 src/modules/users/dto/update-user.dto.ts
 src/modules/users/dto/user.dto.ts
 src/modules/users/entities/user.entity.ts
+src/modules/users/profiles/dto/create-profile.dto.ts
+src/modules/users/profiles/dto/update-profile.dto.ts
+src/modules/users/profiles/entities/profile.entity.ts
+src/modules/users/profiles/profiles.controller.ts
+src/modules/users/profiles/profiles.module.ts
+src/modules/users/profiles/profiles.service.ts
 src/modules/users/services/users.service.ts
 src/modules/users/users.module.ts
 test/app.e2e-spec.ts
@@ -105,12 +117,162 @@ tsconfig.json
 <files>
 This section contains the contents of the repository's files.
 
-<file path=".env.template">
-DB_HOST=localhost
-DB_PORT=5432
-DB_USERNAME=postgres
-DB_PASSWORD=12345678
-DB_NAME=laborapp_db
+<file path="src/modules/job-applications/dto/create-job-application.dto.ts">
+import { ApiProperty } from '@nestjs/swagger';
+import { IsNotEmpty, IsNumber } from 'class-validator';
+
+export class CreateJobApplicationDto {
+  @ApiProperty({ example: 1, description: 'ID del empleo al que se postula' })
+  @IsNumber()
+  @IsNotEmpty()
+  jobId: number;
+
+  @ApiProperty({ example: 2, description: 'ID del usuario trabajador' })
+  @IsNumber()
+  @IsNotEmpty()
+  candidateId: number;
+}
+</file>
+
+<file path="src/modules/job-applications/dto/update-job-application.dto.ts">
+import { PartialType } from '@nestjs/swagger';
+import { CreateJobApplicationDto } from './create-job-application.dto';
+
+export class UpdateJobApplicationDto extends PartialType(CreateJobApplicationDto) {}
+</file>
+
+<file path="src/modules/job-applications/entities/job-application.entity.ts">
+import { Entity, PrimaryGeneratedColumn, ManyToOne, JoinColumn, CreateDateColumn } from 'typeorm';
+import { User } from '../../users/entities/user.entity';
+import { Job } from '../../jobs/entities/job.entity';
+
+@Entity('job_applications')
+export class JobApplication {
+  @PrimaryGeneratedColumn()
+  id!: number;
+
+  // Relación Muchos a Uno: Muchas postulaciones pertenecen a un solo Trabajo (job_id)
+  @ManyToOne(() => Job)
+  @JoinColumn({ name: 'job_id' })
+  job!: Job;
+
+  // Relación Muchos a Uno: Muchas postulaciones pertenecen a un solo Usuario candidato (applicant_id)
+  @ManyToOne(() => User)
+  @JoinColumn({ name: 'applicant_id' })
+  applicant!: User;
+
+  @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  appliedAt!: Date;
+}
+</file>
+
+<file path="src/modules/job-applications/job-applications.controller.ts">
+import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { JobApplicationsService } from './job-applications.service';
+import { CreateJobApplicationDto } from './dto/create-job-application.dto';
+import { UpdateJobApplicationDto } from './dto/update-job-application.dto';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+
+@ApiTags('Job Applications') // Etiqueta solicitada en la tarjeta de Trello
+@Controller('job-applications')
+export class JobApplicationsController {
+  constructor(private readonly jobApplicationsService: JobApplicationsService) {}
+
+  @Post()
+  @ApiOperation({ summary: 'Crear una nueva postulación a empleo' })
+  @ApiResponse({ status: 201, description: 'La postulación ha sido creada exitosamente.' })
+  @ApiResponse({ status: 400, description: 'Datos de postulación inválidos.' })
+  create(@Body() createJobApplicationDto: CreateJobApplicationDto) {
+    return this.jobApplicationsService.create(createJobApplicationDto);
+  }
+
+  @Get()
+  @ApiOperation({ summary: 'Obtener todas las postulaciones' })
+  @ApiResponse({ status: 200, description: 'Listado de postulaciones obtenido correctamente.' })
+  findAll() {
+    return this.jobApplicationsService.findAll();
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Obtener una postulación por su ID' })
+  @ApiResponse({ status: 200, description: 'Postulación encontrada.' })
+  @ApiResponse({ status: 404, description: 'Postulación no encontrada.' })
+  findOne(@Param('id') id: string) {
+    return this.jobApplicationsService.findOne(+id);
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: 'Actualizar una postulación por ID' })
+  @ApiResponse({ status: 200, description: 'Postulación actualizada con éxito.' })
+  update(@Param('id') id: string, @Body() updateJobApplicationDto: UpdateJobApplicationDto) {
+    return this.jobApplicationsService.update(+id, updateJobApplicationDto);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Eliminar una postulación por ID' })
+  @ApiResponse({ status: 200, description: 'Postulación eliminada correctamente.' })
+  remove(@Param('id') id: string) {
+    return this.jobApplicationsService.remove(+id);
+  }
+}
+</file>
+
+<file path="src/modules/job-applications/job-applications.module.ts">
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { JobApplicationsService } from './job-applications.service';
+import { JobApplicationsController } from './job-applications.controller';
+import { JobApplication } from '../jobs/entities/job-application.entity'; // Apunta a la entidad existente
+
+@Module({
+  imports: [TypeOrmModule.forFeature([JobApplication])],
+  controllers: [JobApplicationsController],
+  providers: [JobApplicationsService],
+})
+export class JobApplicationsModule {}
+</file>
+
+<file path="src/modules/job-applications/job-applications.service.ts">
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { JobApplication } from './entities/job-application.entity';
+
+@Injectable()
+export class JobApplicationsService {
+  constructor(
+    @InjectRepository(JobApplication)
+    private readonly repo: Repository<JobApplication>,
+  ) {}
+
+  async create(dto: any): Promise<JobApplication> {
+    const newApp = this.repo.create({
+      job: { id: dto.jobId } as any,
+      applicant: { id: dto.candidateId } as any,
+    });
+    return await this.repo.save(newApp);
+  }
+
+  async findAll(): Promise<JobApplication[]> {
+    return await this.repo.find({ relations: ['job', 'applicant'] });
+  }
+
+  async findOne(id: number): Promise<JobApplication> {
+    const app = await this.repo.findOne({ where: { id }, relations: ['job', 'applicant'] });
+    if (!app) throw new NotFoundException(`Postulación #${id} no existe.`);
+    return app;
+  }
+
+  async update(id: number, dto: any) {
+    // Las postulaciones usualmente no cambian de relaciones directas, pero guardamos metadatos si fuesen necesarios
+    return this.findOne(id);
+  }
+
+  async remove(id: number) {
+    await this.repo.delete(id);
+    return { message: `Postulación #${id} removida.` };
+  }
+}
 </file>
 
 <file path=".gitignore">
@@ -217,102 +379,6 @@ export default tseslint.config(
 );
 </file>
 
-<file path="nest-cli.json">
-{
-  "collection": "@nestjs/schematics",
-  "sourceRoot": "src",
-  "compilerOptions": {
-    "deleteOutDir": true,
-    "plugins": ["@nestjs/swagger"]
-  }
-}
-</file>
-
-<file path="package.json">
-{
-  "name": "labor-app",
-  "version": "0.0.1",
-  "description": "",
-  "author": "",
-  "private": true,
-  "license": "UNLICENSED",
-  "scripts": {
-    "build": "nest build",
-    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "nest start",
-    "start:dev": "nest start --watch",
-    "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main",
-    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:cov": "jest --coverage",
-    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
-  },
-  "dependencies": {
-    "@nestjs/common": "^11.1.19",
-    "@nestjs/config": "^4.0.4",
-    "@nestjs/core": "^11.0.1",
-    "@nestjs/mapped-types": "^2.1.1",
-    "@nestjs/platform-express": "^11.0.1",
-    "@nestjs/swagger": "^11.3.0",
-    "@nestjs/typeorm": "^11.0.1",
-    "class-transformer": "^0.5.1",
-    "class-validator": "^0.15.1",
-    "pg": "^8.20.0",
-    "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1",
-    "swagger-ui-express": "^5.0.1",
-    "typeorm": "^0.3.28"
-  },
-  "devDependencies": {
-    "@eslint/eslintrc": "^3.2.0",
-    "@eslint/js": "^9.18.0",
-    "@nestjs/cli": "^11.0.0",
-    "@nestjs/schematics": "^11.0.0",
-    "@nestjs/testing": "^11.0.1",
-    "@swc/cli": "^0.6.0",
-    "@swc/core": "^1.10.7",
-    "@types/express": "^5.0.0",
-    "@types/jest": "^29.5.14",
-    "@types/node": "^22.10.7",
-    "@types/supertest": "^6.0.2",
-    "eslint": "^9.18.0",
-    "eslint-config-prettier": "^10.0.1",
-    "eslint-plugin-prettier": "^5.2.2",
-    "globals": "^16.0.0",
-    "jest": "^29.7.0",
-    "prettier": "^3.4.2",
-    "source-map-support": "^0.5.21",
-    "supertest": "^7.0.0",
-    "ts-jest": "^29.2.5",
-    "ts-loader": "^9.5.2",
-    "ts-node": "^10.9.2",
-    "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.7.3",
-    "typescript-eslint": "^8.20.0"
-  },
-  "jest": {
-    "moduleFileExtensions": [
-      "js",
-      "json",
-      "ts"
-    ],
-    "rootDir": "src",
-    "testRegex": ".*\\.spec\\.ts$",
-    "transform": {
-      "^.+\\.(t|j)s$": "ts-jest"
-    },
-    "collectCoverageFrom": [
-      "**/*.(t|j)s"
-    ],
-    "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
-  }
-}
-</file>
-
 <file path="README.md">
 ## Project Setup
 
@@ -322,203 +388,6 @@ export default tseslint.config(
 4. Editar el archivo `.env`
 5. Crear la Base de datos
 6. Levantar el api: `npm run start:dev`
-</file>
-
-<file path="src/app.module.ts">
-import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config'; // Importamos ConfigService
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { AuthModule } from './auth/auth.modules';
-
-// Importamos modulos
-import { JobsModule } from './modules/jobs/jobs.module';
-import { UsersModule } from './modules/users/users.module';
-import { BusinessesModule } from './modules/businesses/business.module';
-
-// Agregamos los módulos de soporte para cumplir con la defensa
-import { RatingsModule } from './modules/ratings/ratings.module';
-import { NotificationsModule } from './modules/notifications/notifications.module';
-import { SectorModule } from './modules/sector/sector.module';
-import { MessagesModule } from './modules/messages/messages.module';
-
-@Module({
-  imports: [
-    // Cargamos variables de entorno (.env) de forma global
-    ConfigModule.forRoot({ isGlobal: true }),
-
-    // Usamos forRootAsync para esperar a que las variables carguen primero
-    TypeOrmModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
-        host: configService.get<string>('DB_HOST'),
-        port: configService.get<number>('DB_PORT') || 5432,
-        username: configService.get<string>('DB_USERNAME'),
-        // Aquí forzamos la conversión a String asegurando que el dato ya exista
-        password: String(configService.get<string>('DB_PASSWORD')), 
-        database: configService.get<string>('DB_NAME'),
-        autoLoadEntities: true, 
-        synchronize: true,      
-      }),
-    }),
-
-    // Registramos todos los módulos del sistema LaborApps
-    AuthModule,
-    UsersModule,
-    JobsModule,
-    BusinessesModule,
-    RatingsModule,      // <-- Agregado para el sistema de reputación
-    NotificationsModule, 
-    SectorModule, 
-    MessagesModule,     // <-- Agregado para el sistema de alertas
-  ],
-  controllers: [],
-  providers: [],
-})
-export class AppModule {}
-</file>
-
-<file path="src/auth/auth.controller.ts">
-import { Controller, Post, Body, HttpCode, HttpStatus, Get, UseGuards, Request } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
-import { AuthService } from './auth.service';
-import { LoginDto } from './dto/login.dto';         
-import { RegisterDto } from './dto/register.dto';   
-import { JwtAuthGuard } from './jwt-auth.guard'; // <-- Importamos el candado de seguridad
-
-@ApiTags('Auth')
-@Controller('auth')
-export class AuthController {
-  constructor(private readonly authService: AuthService) {}
-
-  @Post('login')
-  @HttpCode(HttpStatus.OK) // NestJS por defecto da 201 en los POST, con esto lo forzamos a 200 OK
-  @ApiOperation({ summary: 'Iniciar sesión en la plataforma' })
-  @ApiResponse({ status: 200, description: 'Login exitoso. Retorna el token JWT de acceso.' })
-  @ApiResponse({ status: 401, description: 'Error de autenticación. Credenciales inválidas.' })
-  async login(@Body() credentials: LoginDto) {
-    return this.authService.login(credentials);
-  }
-
-  @Post('register')
-  @ApiOperation({ summary: 'Registrar un nuevo usuario (Empleador o Trabajador)' })
-  @ApiResponse({ status: 201, description: 'Usuario registrado exitosamente.' })
-  @ApiResponse({ status: 400, description: 'Error de validación o el correo ya se encuentra registrado.' })
-  async register(@Body() registerDto: RegisterDto) {
-    return this.authService.register(registerDto);
-  }
-
-  // ==========================================
-  // NUEVO: OBTENER PERFIL LOGUEADO
-  // ==========================================
-  @Get('profile')
-  @UseGuards(JwtAuthGuard) // <-- Solo deja pasar si envías un token válido
-  @ApiBearerAuth() // <-- Activa el botoncito del candado verde en Swagger
-  @ApiOperation({ summary: 'Obtener los datos del usuario autenticado actualmente' })
-  @ApiResponse({ status: 200, description: 'Retorna la información del usuario descifrada del token.' })
-  @ApiResponse({ status: 401, description: 'No autorizado. Token faltante o expirado.' })
-  getProfile(@Request() req) {
-    // El Guard valida el token automáticamente y mete la info del usuario en "req.user"
-    return req.user;
-  }
-}
-</file>
-
-<file path="src/auth/auth.modules.ts">
-import { Module } from '@nestjs/common';
-import { AuthService } from './auth.service';
-import { AuthController } from './auth.controller';
-import { UsersModule } from '../modules/users/users.module'; // <-- Verifica esta ruta exacta en tu proyecto
-
-@Module({
-  imports: [
-    UsersModule 
-  ],
-  controllers: [AuthController],
-  providers: [AuthService],
-})
-export class AuthModule {}
-</file>
-
-<file path="src/auth/auth.service.ts">
-import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
-import { UsersService } from '../modules/users/services/users.service'; // Ruta exacta de tu proyecto
-import { RegisterDto } from './dto/register.dto';
-import * as crypto from 'crypto'; // Librería nativa de Node.js para cifrado
-
-@Injectable()
-export class AuthService {
-  constructor(private readonly usersService: UsersService) {}
-
-  // ==========================================
-  // LÓGICA DE REGISTRO CON ALMACENAMIENTO CIFRADO
-  // ==========================================
-  async register(registerDto: RegisterDto) {
-    const { email, password, role } = registerDto;
-
-    // 1. Verificar si el correo ya existe en PostgreSQL
-    const users = await this.usersService.findAll();
-    const userExists = users.find((u: any) => u.email === email);
-    
-    if (userExists) {
-      throw new BadRequestException('El correo electrónico ya se encuentra registrado.');
-    }
-
-    // 2. Cifrar la contraseña usando un Hash SHA-256 seguro
-    const passwordHash = crypto.createHash('sha256').update(password).digest('hex');
-
-    // 3. Crear y guardar el usuario en la base de datos real
-    const newUser = await this.usersService.create({
-      email,
-      password_hash: passwordHash, // Guardamos la contraseña cifrada
-      role,
-      department: 'Zelaya Central', // Valores iniciales obligatorios por la entidad User
-      municipality: 'Nueva Guinea'
-    });
-
-    return {
-      message: 'Usuario registrado exitosamente de forma segura.',
-      user: {
-        id: newUser.id,
-        email: newUser.email,
-        role: newUser.role,
-      },
-    };
-  }
-
-  // ==========================================
-  // LÓGICA DE LOGIN CON VERIFICACIÓN CIFRADA
-  // ==========================================
-  async login(body: any) {
-    const { email, password } = body;
-
-    // 1. Buscamos el usuario en la base de datos real
-    const users = await this.usersService.findAll();
-    const user = users.find((u: any) => u.email === email);
-
-    if (!user) {
-      throw new UnauthorizedException('Credenciales incorrectas');
-    }
-
-    // 2. Ciframos la contraseña entrante para compararla con el hash guardado en la DB
-    const inputHash = crypto.createHash('sha256').update(password).digest('hex');
-
-    if (user.password_hash !== inputHash) {
-      throw new UnauthorizedException('Credenciales incorrectas');
-    }
-
-    return {
-      message: '¡Bienvenido a LaborApps!',
-      user: { 
-        id: user.id,
-        email: user.email, 
-        role: user.role 
-      },
-      token: 'simulated-jwt-token-123' // Mantiene compatibilidad con el JwtAuthGuard actual
-    };
-  }
-}
 </file>
 
 <file path="src/auth/dto/login.dto.ts">
@@ -562,144 +431,6 @@ export class RegisterDto {
 }
 </file>
 
-<file path="src/auth/jwt-auth.guard.ts">
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
-
-@Injectable()
-export class JwtAuthGuard implements CanActivate {
-  canActivate(
-    context: ExecutionContext,
-  ): boolean | Promise<boolean> {
-    const request = context.switchToHttp().getRequest();
-    const authHeader = request.headers.authorization;
-
-    // 1. Verificar si viene el header Authorization
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new UnauthorizedException('No autorizado. Debe proporcionar un token Bearer válido.');
-    }
-
-    // 2. Extraer el token
-    const token = authHeader.split(' ')[1];
-
-    // 3. Validación simulada con el token del grupo
-    if (token === 'simulated-jwt-token-123' || token.length > 5) {
-      return true;
-    }
-
-    throw new UnauthorizedException('Token inválido o expirado.');
-  }
-}
-</file>
-
-<file path="src/main.ts">
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { ValidationPipe } from '@nestjs/common'; // <-- Herramienta de validación global
-
-async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-
-  // ACTIVAR VALIDACIÓN GLOBAL: Obliga a que todas las peticiones cumplan con las reglas de los DTOs
-  app.useGlobalPipes(new ValidationPipe({
-    whitelist: true,            // Remueve propiedades que no estén explícitamente en el DTO
-    forbidNonWhitelisted: true, // Lanza un error si mandan campos de más en el JSON
-    transform: true,            // Convierte tipos automáticamente si el DTO lo requiere
-  }));
-
-  const config = new DocumentBuilder()
-    .setTitle('LaborApps API')
-    .setDescription('Documentación de la plataforma para conectar empleadores y trabajadores.')
-    .setVersion('1.0')
-    .addTag('Users')
-    .addTag('Jobs')
-    .addTag('Businesses')
-    .build();
-
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document);
-
-  await app.listen(3000);
-  console.log(`Servidor corriendo en: http://localhost:3000/api/docs`);
-}
-bootstrap();
-</file>
-
-<file path="src/modules/businesses/business.module.ts">
-import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { Business } from './entities/business.entity';
-import { BusinessService } from './services/business.service'; 
-import { BusinessesController } from './controllers/businesses.controller';
-
-@Module({
-  imports: [TypeOrmModule.forFeature([Business])],
-  controllers: [BusinessesController],
-  providers: [BusinessService],
-  exports: [BusinessService],
-})
-export class BusinessesModule {}
-</file>
-
-<file path="src/modules/businesses/controllers/businesses.controller.ts">
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
-import { BusinessService } from '../services/business.service'; // O '../businesses.service' si no lo metiste en carpeta services
-import { CreateBusinessDto } from '../dto/create-business.dto';
-import { UpdateBusinessDto } from '../dto/update-business.dto';
-import { JwtAuthGuard } from '../../../auth/jwt-auth.guard'; // Verifica que esta ruta apunte bien a tu AuthGuard
-
-@ApiTags('Businesses')
-@Controller('businesses')
-export class BusinessesController {
-  constructor(private readonly businessesService: BusinessService) {}
-
-  @Post()
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Registrar un nuevo negocio o microempresa (Requiere Autenticación)' })
-  @ApiResponse({ status: 201, description: 'Negocio registrado exitosamente.' })
-  create(@Body() createBusinessDto: CreateBusinessDto) {
-    return this.businessesService.create(createBusinessDto);
-  }
-
-  @Get()
-  @ApiOperation({ summary: 'Obtener la lista de todos los negocios registrados' })
-  @ApiResponse({ status: 200, description: 'Retorna el arreglo de empresas.' })
-  findAll() {
-    return this.businessesService.findAll();
-  }
-
-  @Get(':id')
-  @ApiOperation({ summary: 'Obtener los datos de un negocio por su ID' })
-  @ApiParam({ name: 'id', description: 'ID numérico del negocio', example: 1 })
-  @ApiResponse({ status: 200, description: 'Negocio encontrado.' })
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.businessesService.findOne(id);
-  }
-
-  @Patch(':id')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Actualizar los datos de un negocio (Requiere Autenticación)' })
-  @ApiParam({ name: 'id', description: 'ID numérico del negocio a editar' })
-  @ApiResponse({ status: 200, description: 'Negocio actualizado correctamente.' })
-  update(@Param('id', ParseIntPipe) id: number, @Body() updateBusinessDto: UpdateBusinessDto) {
-    return this.businessesService.update(id, updateBusinessDto);
-  }
-
-  @Delete(':id')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Eliminar un negocio del sistema (Requiere Autenticación)' })
-  @ApiParam({ name: 'id', description: 'ID numérico del negocio a eliminar' })
-  @ApiResponse({ status: 200, description: 'Negocio eliminado exitosamente.' })
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.businessesService.remove(id);
-  }
-}
-</file>
-
 <file path="src/modules/businesses/dto/create-business.dto.ts">
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, IsNumber, IsOptional, IsString, Length } from 'class-validator';
@@ -733,82 +464,6 @@ import { PartialType } from '@nestjs/swagger';
 import { CreateBusinessDto } from './create-business.dto';
 
 export class UpdateBusinessDto extends PartialType(CreateBusinessDto) {}
-</file>
-
-<file path="src/modules/businesses/entities/business.entity.ts">
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
-import { ApiProperty } from '@nestjs/swagger';
-import { User } from '../../users/entities/user.entity';
-
-@Entity('businesses')
-export class Business {
-  @PrimaryGeneratedColumn()
-  id: number;
-
-  @ApiProperty({ example: 1, description: 'ID del usuario dueño del negocio' })
-  @Column({ type: 'int4' })
-  owner_id: number;
-
-  @ManyToOne(() => User) 
-  @JoinColumn({ name: 'owner_id' })
-  owner: User; 
-
-  @ApiProperty({ example: 'Constructora El Esfuerzo', description: 'Nombre de la empresa' })
-  @Column()
-  name: string;
-
-  @ApiProperty({ example: 'J-12345678-9', description: 'Número de RUC o identificación' })
-  @Column({ unique: true })
-  tax_id: string;
-
-  @ApiProperty({ example: 'Nueva Guinea, de la gasolinera 2c al norte', description: 'Dirección física' })
-  @Column()
-  address: string;
-
-  @CreateDateColumn()
-  createdAt: Date;
-}
-</file>
-
-<file path="src/modules/businesses/services/business.service.ts">
-import { Injectable } from '@nestjs/common';
-import { CreateBusinessDto } from '../dto/create-business.dto';
-import { UpdateBusinessDto } from '../dto/update-business.dto';
-
-@Injectable()
-export class BusinessService {
-  // Simulamos una base de datos temporal en memoria
-  private businesses: any[] = [];
-
-  create(createBusinessDto: CreateBusinessDto) {
-    const newBusiness = {
-      id: Date.now(), // Generamos un ID numérico falso
-      ...createBusinessDto,
-    };
-    this.businesses.push(newBusiness);
-    return newBusiness; 
-  }
-
-  findAll() {
-    return this.businesses;
-  }
-
-  findOne(id: number) {
-    const business = this.businesses.find(b => b.id === id);
-    return business ? business : `El negocio #${id} no existe`;
-  }
-
-  update(id: number, updateBusinessDto: UpdateBusinessDto) {
-    return {
-      message: `El negocio #${id} ha sido actualizado`,
-      data: updateBusinessDto
-    };
-  }
-
-  remove(id: number) {
-    return `El negocio #${id} fue eliminado del sistema`;
-  }
-}
 </file>
 
 <file path="src/modules/jobs/dto/create-category.dto.ts">
@@ -915,49 +570,1187 @@ export class JobCategory {
 }
 </file>
 
-<file path="src/modules/jobs/entities/job.entity.ts">
-import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+<file path="src/modules/messages/entities/message.entity.ts">
+import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
-import { Business } from '../../businesses/entities/business.entity';
-import { JobCategory } from './job-category.entity';
 
-@Entity('jobs')
-export class Job {
+@Entity('messages')
+export class Message {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ type: 'varchar', length: 150 })
-  title: string;
+  // Quién envía el mensaje (Candidato o Empleador)
+  @ManyToOne(() => User)
+  @JoinColumn({ name: 'sender_id' })
+  sender: User;
+
+  // Quién recibe el mensaje
+  @ManyToOne(() => User)
+  @JoinColumn({ name: 'receiver_id' })
+  receiver: User;
+
+  // El contenido del texto de la conversación
+  @Column({ type: 'text' })
+  content: string;
+
+  // Campos de contacto rápido opcionales (Teléfono o enlace directo a WhatsApp)
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  phoneContact: string;
+
+  @Column({ type: 'text', nullable: true })
+  whatsappLink: string;
+
+  @CreateDateColumn()
+  createdAt: Date;
+}
+</file>
+
+<file path="src/modules/messages/messages.module.ts">
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { MessagesService } from './messages.service';
+import { MessagesController } from './messages.controller';
+import { Message } from './entities/message.entity';
+
+@Module({
+  imports: [TypeOrmModule.forFeature([Message])],
+  controllers: [MessagesController],
+  providers: [MessagesService],
+})
+export class MessagesModule {}
+</file>
+
+<file path="src/modules/notifications/entities/notification.entity.ts">
+import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { User } from '../../users/entities/user.entity';
+
+@Entity('notifications') // [cite: 102]
+export class Notification {
+  @PrimaryGeneratedColumn()
+  id!: number; // [cite: 103]
+
+  // El usuario que recibe la notificación 
+  @ManyToOne(() => User)
+  @JoinColumn({ name: 'user_id' })
+  user!: User;
+
+  @Column({ type: 'varchar' })
+  title!: string; // [cite: 105]
 
   @Column({ type: 'text' })
+  content!: string; // [cite: 106]
+
+  @Column({ type: 'boolean', default: false })
+  is_read!: boolean; // [cite: 107]
+
+  @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  created_at!: Date; // [cite: 108]
+}
+</file>
+
+<file path="src/modules/notifications/notifications.module.ts">
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Notification } from './entities/notification.entity';
+import { NotificationsService } from './notifications.service';
+import { NotificationsController } from './notifications.controller';
+
+@Module({
+  imports: [TypeOrmModule.forFeature([Notification])],
+  controllers: [NotificationsController],
+  providers: [NotificationsService],
+  exports: [NotificationsService],
+})
+export class NotificationsModule {}
+</file>
+
+<file path="src/modules/notifications/notifications.service.ts">
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Notification } from './entities/notification.entity';
+
+@Injectable()
+export class NotificationsService {
+  constructor(
+    @InjectRepository(Notification)
+    private readonly notificationRepository: Repository<Notification>,
+  ) {}
+}
+</file>
+
+<file path="src/modules/ratings/ratings.module.ts">
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Rating } from './entities/ratings.entity';
+import { RatingsService } from './ratings.service';
+import { RatingsController } from './ratings.controller';
+
+@Module({
+  imports: [TypeOrmModule.forFeature([Rating])],
+  controllers: [RatingsController],
+  providers: [RatingsService],
+  exports: [RatingsService],
+})
+export class RatingsModule {}
+</file>
+
+<file path="src/modules/ratings/ratings.service.ts">
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Rating } from './entities/ratings.entity';
+
+@Injectable()
+export class RatingsService {
+  constructor(
+    @InjectRepository(Rating)
+    private readonly ratingRepository: Repository<Rating>,
+  ) {}
+}
+</file>
+
+<file path="src/modules/sector/dto/update-sector.dto.ts">
+import { PartialType } from '@nestjs/mapped-types';
+import { CreateSectorDto } from './create-sector.dto';
+import { IsBoolean, IsOptional } from 'class-validator';
+
+export class UpdateSectorDto extends PartialType(CreateSectorDto) {
+  @IsBoolean()
+  @IsOptional()
+  status?: boolean;
+}
+</file>
+
+<file path="src/modules/sector/entities/sector.entity.ts">
+import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+
+@Entity('sectors')
+export class Sector {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column({ type: 'varchar', length: 100, unique: true })
+  name: string;
+
+  @Column({ type: 'text', nullable: true })
   description: string;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
-  salary: number;
-
-  @Column({ type: 'varchar', default: 'Open' }) // Open, Closed, In_Progress
-  status: string;
-
-  // Relación con el creador/empleador (ID numérico)
-  @ManyToOne(() => User)
-  @JoinColumn({ name: 'employer_id' })
-  employer: User;
-
-  // Relación con la empresa (opcional si trabaja independiente)
-  @ManyToOne(() => Business, { nullable: true })
-  @JoinColumn({ name: 'business_id' })
-  business?: Business;
-
-  // Relación con la categoría de empleo (ID numérico)
-  @ManyToOne(() => JobCategory, (category) => category.jobs, { onDelete: 'SET NULL' })
-  @JoinColumn({ name: 'category_id' })
-  category: JobCategory;
+  @Column({ type: 'boolean', default: true })
+  status: boolean;
 
   @CreateDateColumn()
   createdAt: Date;
 
   @UpdateDateColumn()
   updatedAt: Date;
+}
+</file>
+
+<file path="src/modules/sector/sector.module.ts">
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { SectorController } from './sector.controller';
+import { SectorService } from './sector.service';
+import { Sector } from './entities/sector.entity';
+
+@Module({
+  imports: [TypeOrmModule.forFeature([Sector])],
+  controllers: [SectorController],
+  providers: [SectorService],
+  exports: [SectorService], // Por si otros módulos necesitan usar sectores
+})
+export class SectorModule {}
+</file>
+
+<file path="src/modules/sector/sector.service.ts">
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Sector } from './entities/sector.entity';
+import { CreateSectorDto } from './dto/create-sector.dto';
+import { UpdateSectorDto } from './dto/update-sector.dto';
+
+@Injectable()
+export class SectorService {
+  constructor(
+    @InjectRepository(Sector)
+    private readonly sectorRepository: Repository<Sector>,
+  ) {}
+
+  async create(createSectorDto: CreateSectorDto): Promise<Sector> {
+    const sectorExists = await this.sectorRepository.findOne({
+      where: { name: createSectorDto.name },
+    });
+
+    if (sectorExists) {
+      throw new BadRequestException('El sector con este nombre ya existe.');
+    }
+
+    const newSector = this.sectorRepository.create(createSectorDto);
+    return await this.sectorRepository.save(newSector);
+  }
+
+  async findAll(): Promise<Sector[]> {
+    // Solo traemos los sectores que tengan status: true (activos)
+    return await this.sectorRepository.find({ where: { status: true } });
+  }
+
+  async findOne(id: string): Promise<Sector> {
+    const sector = await this.sectorRepository.findOne({ where: { id, status: true } });
+    if (!sector) {
+      throw new NotFoundException(`Sector con ID ${id} no fue encontrado o está inactivo.`);
+    }
+    return sector;
+  }
+
+  async update(id: string, updateSectorDto: UpdateSectorDto): Promise<Sector> {
+    const sector = await this.findOne(id); // Reutiliza la validación de si existe activo
+    
+    const updatedSector = Object.assign(sector, updateSectorDto);
+    return await this.sectorRepository.save(updatedSector);
+  }
+
+  async remove(id: string): Promise<{ message: string }> {
+    const sector = await this.findOne(id);
+    
+    // Borrado lógico: cambiamos el status a false
+    sector.status = false;
+    await this.sectorRepository.save(sector);
+    
+    return { message: `Sector eliminado lógicamente con éxito.` };
+  }
+}
+</file>
+
+<file path="src/modules/users/dto/create-user.dto.ts">
+import { ApiProperty } from '@nestjs/swagger';
+import { IsEmail, IsNotEmpty, IsString, Length } from 'class-validator';
+
+export class CreateUserDto {
+  @ApiProperty({ 
+    example: 'trabajador@correo.com', 
+    description: 'Correo electrónico único de acceso' 
+  })
+  @IsEmail()
+  @IsNotEmpty()
+  email: string;
+
+  @ApiProperty({ 
+    example: 'ContraseñaSegura123', 
+    description: 'Contraseña en texto plano' 
+  })
+  @IsString()
+  @IsNotEmpty()
+  @Length(6, 20)
+  password: string;
+
+  @ApiProperty({ 
+    example: 'Worker', 
+    description: 'Rol del usuario: Admin, Employer o Worker' 
+  })
+  @IsString()
+  @IsNotEmpty()
+  role: string;
+
+  @ApiProperty({ 
+    example: 'Zelaya Central', 
+    description: 'Departamento para el filtro geográfico' 
+  })
+  @IsString()
+  @IsNotEmpty()
+  department: string;
+
+  @ApiProperty({ 
+    example: 'Nueva Guinea', 
+    description: 'Municipio de residencia' 
+  })
+  @IsString()
+  @IsNotEmpty()
+  municipality: string;
+}
+</file>
+
+<file path="src/modules/users/dto/update-user.dto.ts">
+import { PartialType } from '@nestjs/swagger';
+import { CreateUserDto } from './create-user.dto';
+
+export class UpdateUserDto extends PartialType(CreateUserDto) {}
+</file>
+
+<file path="src/modules/users/profiles/dto/create-profile.dto.ts">
+import { ApiProperty } from '@nestjs/swagger';
+import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+
+export class CreateProfileDto {
+  @ApiProperty({ example: 1, description: 'ID del usuario asociado a este perfil' })
+  @IsNumber()
+  @IsNotEmpty()
+  userId: number;
+
+  @ApiProperty({ example: 'Jordi', description: 'Nombre completo del usuario' })
+  @IsString()
+  @IsNotEmpty()
+  fullName: string;
+
+  @ApiProperty({ example: 'Desarrollador Backend NestJS', required: false })
+  @IsString()
+  @IsOptional()
+  bio?: string;
+}
+</file>
+
+<file path="src/modules/users/profiles/dto/update-profile.dto.ts">
+import { PartialType } from '@nestjs/swagger';
+import { CreateProfileDto } from './create-profile.dto';
+
+export class UpdateProfileDto extends PartialType(CreateProfileDto) {}
+</file>
+
+<file path="src/modules/users/profiles/entities/profile.entity.ts">
+import { Entity, PrimaryGeneratedColumn, Column, OneToOne, JoinColumn } from 'typeorm';
+import { User } from '../../entities/user.entity';
+
+@Entity('profiles')
+export class Profile {
+  @PrimaryGeneratedColumn()
+  id!: number;
+
+  @Column({ type: 'text', nullable: true })
+  bio?: string;
+
+  // Relación 1 a 1 requerida vinculada por user_id
+  @OneToOne(() => User)
+  @JoinColumn({ name: 'user_id' })
+  user!: User;
+}
+</file>
+
+<file path="src/modules/users/profiles/profiles.controller.ts">
+import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { ProfilesService } from './profiles.service';
+import { CreateProfileDto } from './dto/create-profile.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger'; // <- Importante importar esto
+
+@ApiTags('Profiles') // <- La etiqueta de Swagger para esta sección
+@Controller('profiles')
+export class ProfilesController {
+  constructor(private readonly profilesService: ProfilesService) {}
+
+  @Post()
+  @ApiOperation({ summary: 'Crear un nuevo perfil de usuario' })
+  @ApiResponse({ status: 201, description: 'El perfil ha sido creado exitosamente.' })
+  @ApiResponse({ status: 400, description: 'Datos inválidos.' })
+  create(@Body() createProfileDto: CreateProfileDto) {
+    return this.profilesService.create(createProfileDto);
+  }
+
+  @Get()
+  @ApiOperation({ summary: 'Obtener todos los perfiles' })
+  @ApiResponse({ status: 200, description: 'Listado obtenido correctamente.' })
+  findAll() {
+    return this.profilesService.findAll();
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Obtener un perfil por su ID' })
+  @ApiResponse({ status: 200, description: 'Perfil encontrado.' })
+  @ApiResponse({ status: 404, description: 'Perfil no encontrado.' })
+  findOne(@Param('id') id: string) {
+    return this.profilesService.findOne(+id);
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: 'Actualizar un perfil por ID' })
+  @ApiResponse({ status: 200, description: 'Perfil actualizado con éxito.' })
+  update(@Param('id') id: string, @Body() updateProfileDto: UpdateProfileDto) {
+    return this.profilesService.update(+id, updateProfileDto);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Eliminar un perfil por ID' })
+  @ApiResponse({ status: 200, description: 'Perfil eliminado correctamente.' })
+  remove(@Param('id') id: string) {
+    return this.profilesService.remove(+id);
+  }
+}
+</file>
+
+<file path="src/modules/users/profiles/profiles.module.ts">
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { ProfilesService } from './profiles.service';
+import { ProfilesController } from './profiles.controller';
+import { Profile } from './entities/profile.entity';
+
+@Module({
+  imports: [TypeOrmModule.forFeature([Profile])], // Registramos la entidad aquí
+  controllers: [ProfilesController],
+  providers: [ProfilesService],
+  exports: [ProfilesService],
+})
+export class ProfilesModule {}
+</file>
+
+<file path="src/modules/users/profiles/profiles.service.ts">
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Profile } from './entities/profile.entity';
+import { CreateProfileDto } from './dto/create-profile.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+
+@Injectable()
+export class ProfilesService {
+  constructor(
+    @InjectRepository(Profile)
+    private readonly profileRepository: Repository<Profile>,
+  ) {}
+
+  async create(createProfileDto: CreateProfileDto): Promise<Profile> {
+    const newProfile = this.profileRepository.create({
+      bio: createProfileDto.bio,
+      user: { id: createProfileDto.userId } as any,
+    });
+    return await this.profileRepository.save(newProfile);
+  }
+
+  async findAll(): Promise<Profile[]> {
+    return await this.profileRepository.find({ relations: ['user'] });
+  }
+
+  async findOne(id: number): Promise<Profile> {
+    const profile = await this.profileRepository.findOne({ where: { id }, relations: ['user'] });
+    if (!profile) throw new NotFoundException(`Perfil #${id} no encontrado.`);
+    return profile;
+  }
+
+  async update(id: number, updateProfileDto: UpdateProfileDto) {
+    await this.profileRepository.update(id, { bio: updateProfileDto.bio });
+    return this.findOne(id);
+  }
+
+  async remove(id: number) {
+    await this.profileRepository.delete(id);
+    return { message: `Perfil #${id} eliminado.` };
+  }
+}
+</file>
+
+<file path="test/app.e2e-spec.ts">
+import { Test, TestingModule } from '@nestjs/testing';
+import { INestApplication } from '@nestjs/common';
+import * as request from 'supertest';
+import { App } from 'supertest/types';
+import { AppModule } from './../src/app.module';
+
+describe('AppController (e2e)', () => {
+  let app: INestApplication<App>;
+
+  beforeEach(async () => {
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
+
+    app = moduleFixture.createNestApplication();
+    await app.init();
+  });
+
+  it('/ (GET)', () => {
+    return request(app.getHttpServer())
+      .get('/')
+      .expect(200)
+      .expect('Hello World!');
+  });
+});
+</file>
+
+<file path="test/jest-e2e.json">
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": ".",
+  "testEnvironment": "node",
+  "testRegex": ".e2e-spec.ts$",
+  "transform": {
+    "^.+\\.(t|j)s$": "ts-jest"
+  }
+}
+</file>
+
+<file path="tsconfig.build.json">
+{
+  "extends": "./tsconfig.json",
+  "exclude": ["node_modules", "test", "dist", "**/*spec.ts"]
+}
+</file>
+
+<file path="tsconfig.json">
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "declaration": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "ES2023",
+    "sourceMap": true,
+    "outDir": "./dist",
+    // "baseUrl": "./",
+    "incremental": true,
+    "skipLibCheck": true,
+    "strictNullChecks": true,
+    "forceConsistentCasingInFileNames": true,
+    "noImplicitAny": false,
+    "strictBindCallApply": false,
+    "noFallthroughCasesInSwitch": false
+  }
+}
+</file>
+
+<file path=".env.template">
+DB_HOST=localhost
+DB_PORT=5432
+DB_USERNAME=postgres
+DB_PASSWORD=
+DB_NAME=
+</file>
+
+<file path="nest-cli.json">
+{
+  "collection": "@nestjs/schematics",
+  "sourceRoot": "src",
+  "compilerOptions": {
+    "deleteOutDir": true,
+    "plugins": ["@nestjs/swagger"]
+  }
+}
+</file>
+
+<file path="package.json">
+{
+  "name": "labor-app",
+  "version": "0.0.1",
+  "description": "",
+  "author": "",
+  "private": true,
+  "license": "UNLICENSED",
+  "scripts": {
+    "build": "nest build",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "start": "nest start",
+    "start:dev": "nest start --watch",
+    "start:debug": "nest start --debug --watch",
+    "start:prod": "node dist/main",
+    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:cov": "jest --coverage",
+    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
+    "test:e2e": "jest --config ./test/jest-e2e.json"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.1.19",
+    "@nestjs/config": "^4.0.4",
+    "@nestjs/core": "^11.0.1",
+    "@nestjs/mapped-types": "^2.1.1",
+    "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/swagger": "^11.3.0",
+    "@nestjs/typeorm": "^11.0.1",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
+    "pg": "^8.20.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1",
+    "swagger-ui-express": "^5.0.1",
+    "typeorm": "^0.3.28"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.2.0",
+    "@eslint/js": "^9.18.0",
+    "@nestjs/cli": "^11.0.0",
+    "@nestjs/schematics": "^11.0.0",
+    "@nestjs/testing": "^11.0.1",
+    "@swc/cli": "^0.6.0",
+    "@swc/core": "^1.10.7",
+    "@types/express": "^5.0.0",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^22.10.7",
+    "@types/supertest": "^6.0.2",
+    "eslint": "^9.18.0",
+    "eslint-config-prettier": "^10.0.1",
+    "eslint-plugin-prettier": "^5.2.2",
+    "globals": "^16.0.0",
+    "jest": "^29.7.0",
+    "prettier": "^3.4.2",
+    "source-map-support": "^0.5.21",
+    "supertest": "^7.0.0",
+    "ts-jest": "^29.2.5",
+    "ts-loader": "^9.5.2",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.20.0"
+  },
+  "jest": {
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
+    "rootDir": "src",
+    "testRegex": ".*\\.spec\\.ts$",
+    "transform": {
+      "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "collectCoverageFrom": [
+      "**/*.(t|j)s"
+    ],
+    "coverageDirectory": "../coverage",
+    "testEnvironment": "node"
+  }
+}
+</file>
+
+<file path="src/auth/auth.modules.ts">
+import { Module } from '@nestjs/common';
+import { AuthService } from './auth.service';
+import { AuthController } from './auth.controller';
+import { UsersModule } from '../modules/users/users.module'; // <-- Verifica esta ruta exacta en tu proyecto
+
+@Module({
+  imports: [
+    UsersModule 
+  ],
+  controllers: [AuthController],
+  providers: [AuthService],
+})
+export class AuthModule {}
+</file>
+
+<file path="src/auth/auth.service.ts">
+import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import { UsersService } from '../modules/users/services/users.service'; // Ruta exacta de tu proyecto
+import { RegisterDto } from './dto/register.dto';
+import * as crypto from 'crypto'; // Librería nativa de Node.js para cifrado
+
+@Injectable()
+export class AuthService {
+  constructor(private readonly usersService: UsersService) {}
+
+  // ==========================================
+  // LÓGICA DE REGISTRO CON ALMACENAMIENTO CIFRADO
+  // ==========================================
+  async register(registerDto: RegisterDto) {
+    const { email, password, role } = registerDto;
+
+    // 1. Verificar si el correo ya existe en PostgreSQL
+    const users = await this.usersService.findAll();
+    const userExists = users.find((u: any) => u.email === email);
+    
+    if (userExists) {
+      throw new BadRequestException('El correo electrónico ya se encuentra registrado.');
+    }
+
+    // 2. Cifrar la contraseña usando un Hash SHA-256 seguro
+    const passwordHash = crypto.createHash('sha256').update(password).digest('hex');
+
+    // 3. Crear y guardar el usuario en la base de datos real
+    const newUser = await this.usersService.create({
+      email,
+      password_hash: passwordHash, // Guardamos la contraseña cifrada
+      role,
+      department: 'Zelaya Central', // Valores iniciales obligatorios por la entidad User
+      municipality: 'Nueva Guinea'
+    });
+
+    return {
+      message: 'Usuario registrado exitosamente de forma segura.',
+      user: {
+        id: newUser.id,
+        email: newUser.email,
+        role: newUser.role,
+      },
+    };
+  }
+
+  // ==========================================
+  // LÓGICA DE LOGIN CON VERIFICACIÓN CIFRADA
+  // ==========================================
+  async login(body: any) {
+    const { email, password } = body;
+
+    // 1. Buscamos el usuario en la base de datos real
+    const users = await this.usersService.findAll();
+    const user = users.find((u: any) => u.email === email);
+
+    if (!user) {
+      throw new UnauthorizedException('Credenciales incorrectas');
+    }
+
+    // 2. Ciframos la contraseña entrante para compararla con el hash guardado en la DB
+    const inputHash = crypto.createHash('sha256').update(password).digest('hex');
+
+    if (user.password_hash !== inputHash) {
+      throw new UnauthorizedException('Credenciales incorrectas');
+    }
+
+    return {
+      message: '¡Bienvenido a LaborApps!',
+      user: { 
+        id: user.id,
+        email: user.email, 
+        role: user.role 
+      },
+      token: 'simulated-jwt-token-123' // Mantiene compatibilidad con el JwtAuthGuard actual
+    };
+  }
+}
+</file>
+
+<file path="src/auth/jwt-auth.guard.ts">
+import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+
+@Injectable()
+export class JwtAuthGuard implements CanActivate {
+  canActivate(
+    context: ExecutionContext,
+  ): boolean | Promise<boolean> {
+    const request = context.switchToHttp().getRequest();
+    const authHeader = request.headers.authorization;
+
+    // 1. Verificar si viene el header Authorization
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      throw new UnauthorizedException('No autorizado. Debe proporcionar un token Bearer válido.');
+    }
+
+    // 2. Extraer el token
+    const token = authHeader.split(' ')[1];
+
+    // 3. Validación simulada con el token del grupo
+    if (token === 'simulated-jwt-token-123' || token.length > 5) {
+      return true;
+    }
+
+    throw new UnauthorizedException('Token inválido o expirado.');
+  }
+}
+</file>
+
+<file path="src/modules/messages/dto/create-message.dto.ts">
+import { ApiProperty } from '@nestjs/swagger';
+import { IsInt, IsNotEmpty, IsOptional, IsString, Length, Matches } from 'class-validator';
+
+export class CreateMessageDto {
+  @ApiProperty({ example: 1, description: 'ID del usuario que envía el mensaje (Candidato)' })
+  @IsInt()
+  @IsNotEmpty()
+  senderId: number;
+
+  @ApiProperty({ example: 2, description: 'ID del usuario que recibe el mensaje (Empleador)' })
+  @IsInt()
+  @IsNotEmpty()
+  receiverId: number;
+
+  @ApiProperty({ 
+    example: 'Hola, vi su anuncio. Tengo experiencia en mantenimiento.', 
+    description: 'Contenido del mensaje inicial' 
+  })
+  @IsString()
+  @IsNotEmpty()
+  @Length(5, 500)
+  content: string;
+
+  @ApiProperty({ 
+    example: '88888888', 
+    description: 'Número telefónico sin código de país (opcional para generar la redirección wa.me)', 
+    required: false 
+  })
+  @IsString()
+  @IsOptional()
+  @Matches(/^[0-9]{8}$/, { message: 'El número debe tener exactamente 8 dígitos (formato local)' })
+  phoneContact?: string;
+}
+</file>
+
+<file path="src/modules/messages/dto/update-message.dto.ts">
+import { PartialType } from '@nestjs/swagger';
+import { CreateMessageDto } from './create-message.dto';
+
+export class UpdateMessageDto extends PartialType(CreateMessageDto) {}
+</file>
+
+<file path="src/modules/messages/messages.controller.ts">
+import { Controller, Post, Body, Patch, Param, Get, Query, Delete, ParseIntPipe, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiQuery, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
+import { MessagesService } from './messages.service';
+import { CreateMessageDto } from './dto/create-message.dto';
+import { UpdateMessageDto } from './dto/update-message.dto';
+import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+
+@ApiTags('Messages')
+@Controller('messages')
+export class MessagesController {
+  constructor(private readonly messagesService: MessagesService) {}
+
+  @Post()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Enviar un mensaje inicial y generar link de WhatsApp (Requiere Autenticación)' })
+  @ApiResponse({ status: 201, description: 'Mensaje guardado en base de datos y link de wa.me generado exitosamente.' })
+  @ApiResponse({ status: 400, description: 'Error de validación (ej. formato de teléfono incorrecto).' })
+  create(@Body() createMessageDto: CreateMessageDto) {
+    return this.messagesService.create(createMessageDto);
+  }
+
+  @Get('history')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Obtener el historial de chat entre dos usuarios' })
+  @ApiQuery({ name: 'userA', description: 'ID del primer usuario (ej: Candidato)' })
+  @ApiQuery({ name: 'userB', description: 'ID del segundo usuario (ej: Empleador)' })
+  @ApiResponse({ status: 200, description: 'Historial de mensajes devuelto correctamente.' })
+  getChatHistory(
+    @Query('userA', ParseIntPipe) userA: number,
+    @Query('userB', ParseIntPipe) userB: number,
+  ) {
+    return this.messagesService.getChatHistory(userA, userB);
+  }
+
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Editar el contenido de un mensaje (Solo antes de la redirección a WhatsApp)' })
+  @ApiParam({ name: 'id', description: 'ID numérico del mensaje a editar', example: 1 })
+  @ApiResponse({ status: 200, description: 'Mensaje actualizado correctamente.' })
+  update(@Param('id', ParseIntPipe) id: number, @Body() updateMessageDto: UpdateMessageDto) {
+    return this.messagesService.update(id, updateMessageDto);
+  }
+
+  // ==========================================
+  // NUEVO: ELIMINAR MENSAJE (DELETE)
+  // ==========================================
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Eliminar un mensaje del historial (Requiere Autenticación)' })
+  @ApiParam({ name: 'id', description: 'ID numérico del mensaje a eliminar' })
+  @ApiResponse({ status: 200, description: 'Mensaje eliminado.' })
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.messagesService.remove(id);
+  }
+}
+</file>
+
+<file path="src/modules/messages/messages.service.ts">
+import { Injectable, BadRequestException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Message } from './entities/message.entity';
+import { CreateMessageDto } from './dto/create-message.dto';
+
+@Injectable()
+export class MessagesService {
+  constructor(
+    @InjectRepository(Message)
+    private readonly messageRepository: Repository<Message>,
+  ) {}
+
+  // Enviar un nuevo mensaje con opción de contacto directo
+  async create(createMessageDto: CreateMessageDto) {
+    try {
+      const { senderId, receiverId, ...messageData } = createMessageDto;
+
+      const newMessage = this.messageRepository.create({
+        ...messageData,
+        sender: { id: senderId },
+        receiver: { id: receiverId },
+      } as unknown as Message); // Mapeo seguro contra quejas de TypeScript
+
+      return await this.messageRepository.save(newMessage);
+    } catch (error) {
+      console.error('🔴 ERROR AL ENVIAR MENSAJE:', error);
+      throw new BadRequestException('No se pudo enviar el mensaje. Verifique los IDs de usuario.');
+    }
+  }
+
+  // Obtener el historial completo de mensajes entre dos usuarios
+  async getChatHistory(userA: number, userB: number) {
+    return await this.messageRepository.createQueryBuilder('message')
+      .leftJoinAndSelect('message.sender', 'sender')
+      .leftJoinAndSelect('message.receiver', 'receiver')
+      .where(
+        '(sender.id = :userA AND receiver.id = :userB) OR (sender.id = :userB AND receiver.id = :userA)',
+        { userA, userB }
+      )
+      .orderBy('message.createdAt', 'ASC') // Ordenados del más viejo al más nuevo
+      .getMany();
+  }
+  // Adentro de MessagesService
+  update(id: number, updateMessageDto: any) {
+    return {
+      info: `El mensaje #${id} ha sido editado (Solo válido si no se ha redirigido a WhatsApp).`,
+      datosNuevos: updateMessageDto
+    };
+  }
+  // ==========================================
+  // NUEVO: ELIMINAR MENSAJE
+  // ==========================================
+  remove(id: number) {
+    return {
+      message: `El mensaje #${id} ha sido eliminado del historial.`,
+    };
+  }
+}
+</file>
+
+<file path="src/modules/notifications/notifications.controller.ts">
+import { Controller } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
+import { NotificationsService } from './notifications.service'; // Ruta directa
+
+@ApiTags('Notifications')
+@Controller('notifications')
+export class NotificationsController {
+  constructor(private readonly notificationsService: NotificationsService) {}
+}
+</file>
+
+<file path="src/modules/ratings/ratings.controller.ts">
+import { Controller } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
+import { RatingsService } from './ratings.service'; // Ruta directa
+
+@ApiTags('Ratings')
+@Controller('ratings')
+export class RatingsController {
+  constructor(private readonly ratingsService: RatingsService) {}
+}
+</file>
+
+<file path="src/modules/sector/dto/create-sector.dto.ts">
+import { ApiProperty } from '@nestjs/swagger';
+import { IsNotEmpty, IsOptional, IsString, Length } from 'class-validator';
+
+export class CreateSectorDto {
+  @ApiProperty({ 
+    example: 'Construcción y Albañilería', 
+    description: 'Nombre del sector económico o rubro comercial' 
+  })
+  @IsString()
+  @IsNotEmpty()
+  @Length(3, 100)
+  name: string;
+
+  @ApiProperty({ 
+    example: 'Servicios de construcción de viviendas, reparaciones y acabados', 
+    required: false,
+    description: 'Detalle opcional sobre las actividades del sector'
+  })
+  @IsString()
+  @IsOptional()
+  description?: string;
+}
+</file>
+
+<file path="src/modules/sector/sector.controller.ts">
+import { Controller, Get, Post, Body, Patch, Param, Delete, ParseUUIDPipe } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
+import { SectorService } from './sector.service';
+import { CreateSectorDto } from './dto/create-sector.dto';
+import { UpdateSectorDto } from './dto/update-sector.dto';
+
+@ApiTags('Sectors') // <-- Agrupa los endpoints en una sección limpia
+@Controller('sectors')
+export class SectorController {
+  constructor(private readonly sectorService: SectorService) {}
+
+  @Post()
+  @ApiOperation({ summary: 'Crear un nuevo sector económico' })
+  @ApiResponse({ status: 201, description: 'Sector creado exitosamente.' })
+  @ApiResponse({ status: 400, description: 'Ya existe un sector con este nombre.' })
+  create(@Body() createSectorDto: CreateSectorDto) {
+    return this.sectorService.create(createSectorDto);
+  }
+
+  @Get()
+  @ApiOperation({ summary: 'Obtener todos los sectores activos (status: true)' })
+  @ApiResponse({ status: 200, description: 'Lista de sectores recuperada con éxito.' })
+  findAll() {
+    return this.sectorService.findAll();
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Obtener un sector específico por su ID (UUID)' })
+  @ApiParam({ name: 'id', description: 'ID único del sector en formato UUID' })
+  @ApiResponse({ status: 200, description: 'Sector encontrado.' })
+  @ApiResponse({ status: 404, description: 'Sector no encontrado o se encuentra inactivo.' })
+  findOne(@Param('id', ParseUUIDPipe) id: string) {
+    return this.sectorService.findOne(id);
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: 'Actualizar los datos de un sector' })
+  @ApiParam({ name: 'id', description: 'ID del sector a modificar' })
+  @ApiResponse({ status: 200, description: 'Sector actualizado correctamente.' })
+  @ApiResponse({ status: 404, description: 'No se pudo actualizar porque el sector no existe.' })
+  update(@Param('id', ParseUUIDPipe) id: string, @Body() updateSectorDto: UpdateSectorDto) {
+    return this.sectorService.update(id, updateSectorDto);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Eliminar lógicamente un sector' })
+  @ApiParam({ name: 'id', description: 'ID del sector a desactivar' })
+  @ApiResponse({ status: 200, description: 'Sector desactivado con éxito (status cambiado a false).' })
+  remove(@Param('id', ParseUUIDPipe) id: string) {
+    return this.sectorService.remove(id);
+  }
+}
+</file>
+
+<file path="src/modules/users/dto/user.dto.ts">
+import { ApiProperty } from '@nestjs/swagger';
+import { IsEmail, IsNotEmpty, IsString, Length, IsEnum } from 'class-validator';
+
+export class CreateUserDto {
+  @ApiProperty({ 
+    example: 'trabajador@correo.com', 
+    description: 'Correo electrónico único de acceso' 
+  })
+  @IsEmail()
+  @IsNotEmpty()
+  email: string;
+
+  @ApiProperty({ 
+    example: 'ContraseñaSegura123', 
+    description: 'Contraseña en texto plano (se aplicará hash SHA-256 en la base de datos)' 
+  })
+  @IsString()
+  @IsNotEmpty()
+  @Length(6, 20)
+  password: string;
+
+  @ApiProperty({ 
+    example: 'Worker', 
+    description: 'Rol del usuario dentro del sistema: Admin, Employer o Worker' 
+  })
+  @IsString()
+  @IsNotEmpty()
+  role: string;
+
+  @ApiProperty({ 
+    example: 'Zelaya Central', 
+    description: 'Departamento para el algoritmo de filtrado geográfico' 
+  })
+  @IsString()
+  @IsNotEmpty()
+  department: string;
+
+  @ApiProperty({ 
+    example: 'Nueva Guinea', 
+    description: 'Municipio de residencia para la conexión de ofertas locales' 
+  })
+  @IsString()
+  @IsNotEmpty()
+  municipality: string;
+}
+</file>
+
+<file path="src/modules/users/users.module.ts">
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { UsersController } from './controllers/users.controller';
+import { UsersService } from './services/users.service';
+import { User } from './entities/user.entity';
+import { ProfilesModule } from './profiles/profiles.module';
+
+@Module({
+  // Registramos la entidad User para que TypeORM cree tu tabla 'users'
+  imports: [TypeOrmModule.forFeature([User]), ProfilesModule],
+  controllers: [UsersController],
+  providers: [UsersService],
+  // Exportamos el servicio por si otro módulo necesita buscar usuarios
+  exports: [UsersService], 
+})
+export class UsersModule {}
+</file>
+
+<file path="src/auth/auth.controller.ts">
+import { Controller, Post, Body, HttpCode, HttpStatus, Get, UseGuards, Request } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { AuthService } from './auth.service';
+import { LoginDto } from './dto/login.dto';         
+import { RegisterDto } from './dto/register.dto';   
+import { JwtAuthGuard } from './jwt-auth.guard'; // <-- Importamos el candado de seguridad
+
+@ApiTags('Auth')
+@Controller('auth')
+export class AuthController {
+  constructor(private readonly authService: AuthService) {}
+
+  @Post('login')
+  @HttpCode(HttpStatus.OK) // NestJS por defecto da 201 en los POST, con esto lo forzamos a 200 OK
+  @ApiOperation({ summary: 'Iniciar sesión en la plataforma' })
+  @ApiResponse({ status: 200, description: 'Login exitoso. Retorna el token JWT de acceso.' })
+  @ApiResponse({ status: 401, description: 'Error de autenticación. Credenciales inválidas.' })
+  async login(@Body() credentials: LoginDto) {
+    return this.authService.login(credentials);
+  }
+
+  @Post('register')
+  @ApiOperation({ summary: 'Registrar un nuevo usuario (Empleador o Trabajador)' })
+  @ApiResponse({ status: 201, description: 'Usuario registrado exitosamente.' })
+  @ApiResponse({ status: 400, description: 'Error de validación o el correo ya se encuentra registrado.' })
+  async register(@Body() registerDto: RegisterDto) {
+    return this.authService.register(registerDto);
+  }
+
+  // ==========================================
+  // NUEVO: OBTENER PERFIL LOGUEADO
+  // ==========================================
+  @Get('profile')
+  @UseGuards(JwtAuthGuard) // <-- Solo deja pasar si envías un token válido
+  @ApiBearerAuth() // <-- Activa el botoncito del candado verde en Swagger
+  @ApiOperation({ summary: 'Obtener los datos del usuario autenticado actualmente' })
+  @ApiResponse({ status: 200, description: 'Retorna la información del usuario descifrada del token.' })
+  @ApiResponse({ status: 401, description: 'No autorizado. Token faltante o expirado.' })
+  getProfile(@Request() req) {
+    // El Guard valida el token automáticamente y mete la info del usuario en "req.user"
+    return req.user;
+  }
+}
+</file>
+
+<file path="src/modules/businesses/entities/business.entity.ts">
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, OneToOne, JoinColumn } from 'typeorm';
+import { ApiProperty } from '@nestjs/swagger';
+import { User } from '../../users/entities/user.entity';
+
+@Entity('businesses')
+export class Business {
+  @PrimaryGeneratedColumn()
+  id!: number;
+
+  @ApiProperty({ example: 'Constructora El Esfuerzo', description: 'Nombre de la empresa' })
+  @Column()
+  name!: string;
+
+  @ApiProperty({ example: 'J-12345678-9', description: 'Número de RUC o identificación' })
+  @Column({ unique: true })
+  tax_id!: string;
+
+  @ApiProperty({ example: 'Nueva Guinea, de la gasolinera 2c al norte', description: 'Dirección física' })
+  @Column()
+  address!: string;
+
+  // Cambiado con éxito a Relación 1 a 1 vinculada por user_id
+  @OneToOne(() => User) 
+  @JoinColumn({ name: 'user_id' })
+  user!: User; 
+
+  @CreateDateColumn()
+  createdAt!: Date;
 }
 </file>
 
@@ -1033,23 +1826,6 @@ export class JobsController {
     return this.jobsService.createCategory(createCategoryDto);
   }
 }
-</file>
-
-<file path="src/modules/jobs/jobs.module.ts">
-import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { JobsController } from './jobs.controller';
-import { JobsService } from './jobs.service';
-import { Job } from './entities/job.entity';
-import { JobCategory } from './entities/job-category.entity';
-
-@Module({
-  imports: [TypeOrmModule.forFeature([Job, JobCategory])], // <-- Agregamos las entidades aquí
-  controllers: [JobsController],
-  providers: [JobsService],
-  exports: [JobsService],
-})
-export class JobsModule {}
 </file>
 
 <file path="src/modules/jobs/jobs.service.ts">
@@ -1145,294 +1921,6 @@ export class JobsService {
 }
 </file>
 
-<file path="src/modules/messages/dto/create-message.dto.ts">
-import { ApiProperty } from '@nestjs/swagger';
-import { IsInt, IsNotEmpty, IsOptional, IsString, Length, Matches } from 'class-validator';
-
-export class CreateMessageDto {
-  @ApiProperty({ example: 1, description: 'ID del usuario que envía el mensaje (Candidato)' })
-  @IsInt()
-  @IsNotEmpty()
-  senderId: number;
-
-  @ApiProperty({ example: 2, description: 'ID del usuario que recibe el mensaje (Empleador)' })
-  @IsInt()
-  @IsNotEmpty()
-  receiverId: number;
-
-  @ApiProperty({ 
-    example: 'Hola, vi su anuncio. Tengo experiencia en mantenimiento.', 
-    description: 'Contenido del mensaje inicial' 
-  })
-  @IsString()
-  @IsNotEmpty()
-  @Length(5, 500)
-  content: string;
-
-  @ApiProperty({ 
-    example: '88888888', 
-    description: 'Número telefónico sin código de país (opcional para generar la redirección wa.me)', 
-    required: false 
-  })
-  @IsString()
-  @IsOptional()
-  @Matches(/^[0-9]{8}$/, { message: 'El número debe tener exactamente 8 dígitos (formato local)' })
-  phoneContact?: string;
-}
-</file>
-
-<file path="src/modules/messages/dto/update-message.dto.ts">
-import { PartialType } from '@nestjs/swagger';
-import { CreateMessageDto } from './create-message.dto';
-
-export class UpdateMessageDto extends PartialType(CreateMessageDto) {}
-</file>
-
-<file path="src/modules/messages/entities/message.entity.ts">
-import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
-import { User } from '../../users/entities/user.entity';
-
-@Entity('messages')
-export class Message {
-  @PrimaryGeneratedColumn()
-  id: number;
-
-  // Quién envía el mensaje (Candidato o Empleador)
-  @ManyToOne(() => User)
-  @JoinColumn({ name: 'sender_id' })
-  sender: User;
-
-  // Quién recibe el mensaje
-  @ManyToOne(() => User)
-  @JoinColumn({ name: 'receiver_id' })
-  receiver: User;
-
-  // El contenido del texto de la conversación
-  @Column({ type: 'text' })
-  content: string;
-
-  // Campos de contacto rápido opcionales (Teléfono o enlace directo a WhatsApp)
-  @Column({ type: 'varchar', length: 20, nullable: true })
-  phoneContact: string;
-
-  @Column({ type: 'text', nullable: true })
-  whatsappLink: string;
-
-  @CreateDateColumn()
-  createdAt: Date;
-}
-</file>
-
-<file path="src/modules/messages/messages.controller.ts">
-import { Controller, Post, Body, Patch, Param, Get, Query, Delete, ParseIntPipe, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiQuery, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
-import { MessagesService } from './messages.service';
-import { CreateMessageDto } from './dto/create-message.dto';
-import { UpdateMessageDto } from './dto/update-message.dto';
-import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
-
-@ApiTags('Messages')
-@Controller('messages')
-export class MessagesController {
-  constructor(private readonly messagesService: MessagesService) {}
-
-  @Post()
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Enviar un mensaje inicial y generar link de WhatsApp (Requiere Autenticación)' })
-  @ApiResponse({ status: 201, description: 'Mensaje guardado en base de datos y link de wa.me generado exitosamente.' })
-  @ApiResponse({ status: 400, description: 'Error de validación (ej. formato de teléfono incorrecto).' })
-  create(@Body() createMessageDto: CreateMessageDto) {
-    return this.messagesService.create(createMessageDto);
-  }
-
-  @Get('history')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Obtener el historial de chat entre dos usuarios' })
-  @ApiQuery({ name: 'userA', description: 'ID del primer usuario (ej: Candidato)' })
-  @ApiQuery({ name: 'userB', description: 'ID del segundo usuario (ej: Empleador)' })
-  @ApiResponse({ status: 200, description: 'Historial de mensajes devuelto correctamente.' })
-  getChatHistory(
-    @Query('userA', ParseIntPipe) userA: number,
-    @Query('userB', ParseIntPipe) userB: number,
-  ) {
-    return this.messagesService.getChatHistory(userA, userB);
-  }
-
-  @Patch(':id')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Editar el contenido de un mensaje (Solo antes de la redirección a WhatsApp)' })
-  @ApiParam({ name: 'id', description: 'ID numérico del mensaje a editar', example: 1 })
-  @ApiResponse({ status: 200, description: 'Mensaje actualizado correctamente.' })
-  update(@Param('id', ParseIntPipe) id: number, @Body() updateMessageDto: UpdateMessageDto) {
-    return this.messagesService.update(id, updateMessageDto);
-  }
-
-  // ==========================================
-  // NUEVO: ELIMINAR MENSAJE (DELETE)
-  // ==========================================
-  @Delete(':id')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Eliminar un mensaje del historial (Requiere Autenticación)' })
-  @ApiParam({ name: 'id', description: 'ID numérico del mensaje a eliminar' })
-  @ApiResponse({ status: 200, description: 'Mensaje eliminado.' })
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.messagesService.remove(id);
-  }
-}
-</file>
-
-<file path="src/modules/messages/messages.module.ts">
-import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { MessagesService } from './messages.service';
-import { MessagesController } from './messages.controller';
-import { Message } from './entities/message.entity';
-
-@Module({
-  imports: [TypeOrmModule.forFeature([Message])],
-  controllers: [MessagesController],
-  providers: [MessagesService],
-})
-export class MessagesModule {}
-</file>
-
-<file path="src/modules/messages/messages.service.ts">
-import { Injectable, BadRequestException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Message } from './entities/message.entity';
-import { CreateMessageDto } from './dto/create-message.dto';
-
-@Injectable()
-export class MessagesService {
-  constructor(
-    @InjectRepository(Message)
-    private readonly messageRepository: Repository<Message>,
-  ) {}
-
-  // Enviar un nuevo mensaje con opción de contacto directo
-  async create(createMessageDto: CreateMessageDto) {
-    try {
-      const { senderId, receiverId, ...messageData } = createMessageDto;
-
-      const newMessage = this.messageRepository.create({
-        ...messageData,
-        sender: { id: senderId },
-        receiver: { id: receiverId },
-      } as unknown as Message); // Mapeo seguro contra quejas de TypeScript
-
-      return await this.messageRepository.save(newMessage);
-    } catch (error) {
-      console.error('🔴 ERROR AL ENVIAR MENSAJE:', error);
-      throw new BadRequestException('No se pudo enviar el mensaje. Verifique los IDs de usuario.');
-    }
-  }
-
-  // Obtener el historial completo de mensajes entre dos usuarios
-  async getChatHistory(userA: number, userB: number) {
-    return await this.messageRepository.createQueryBuilder('message')
-      .leftJoinAndSelect('message.sender', 'sender')
-      .leftJoinAndSelect('message.receiver', 'receiver')
-      .where(
-        '(sender.id = :userA AND receiver.id = :userB) OR (sender.id = :userB AND receiver.id = :userA)',
-        { userA, userB }
-      )
-      .orderBy('message.createdAt', 'ASC') // Ordenados del más viejo al más nuevo
-      .getMany();
-  }
-  // Adentro de MessagesService
-  update(id: number, updateMessageDto: any) {
-    return {
-      info: `El mensaje #${id} ha sido editado (Solo válido si no se ha redirigido a WhatsApp).`,
-      datosNuevos: updateMessageDto
-    };
-  }
-  // ==========================================
-  // NUEVO: ELIMINAR MENSAJE
-  // ==========================================
-  remove(id: number) {
-    return {
-      message: `El mensaje #${id} ha sido eliminado del historial.`,
-    };
-  }
-}
-</file>
-
-<file path="src/modules/notifications/entities/notification.entity.ts">
-import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
-import { User } from '../../users/entities/user.entity';
-
-@Entity('notifications') // [cite: 102]
-export class Notification {
-  @PrimaryGeneratedColumn()
-  id!: number; // [cite: 103]
-
-  // El usuario que recibe la notificación 
-  @ManyToOne(() => User)
-  @JoinColumn({ name: 'user_id' })
-  user!: User;
-
-  @Column({ type: 'varchar' })
-  title!: string; // [cite: 105]
-
-  @Column({ type: 'text' })
-  content!: string; // [cite: 106]
-
-  @Column({ type: 'boolean', default: false })
-  is_read!: boolean; // [cite: 107]
-
-  @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
-  created_at!: Date; // [cite: 108]
-}
-</file>
-
-<file path="src/modules/notifications/notifications.controller.ts">
-import { Controller } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
-import { NotificationsService } from './notifications.service'; // Ruta directa
-
-@ApiTags('Notifications')
-@Controller('notifications')
-export class NotificationsController {
-  constructor(private readonly notificationsService: NotificationsService) {}
-}
-</file>
-
-<file path="src/modules/notifications/notifications.module.ts">
-import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { Notification } from './entities/notification.entity';
-import { NotificationsService } from './notifications.service';
-import { NotificationsController } from './notifications.controller';
-
-@Module({
-  imports: [TypeOrmModule.forFeature([Notification])],
-  controllers: [NotificationsController],
-  providers: [NotificationsService],
-  exports: [NotificationsService],
-})
-export class NotificationsModule {}
-</file>
-
-<file path="src/modules/notifications/notifications.service.ts">
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Notification } from './entities/notification.entity';
-
-@Injectable()
-export class NotificationsService {
-  constructor(
-    @InjectRepository(Notification)
-    private readonly notificationRepository: Repository<Notification>,
-  ) {}
-}
-</file>
-
 <file path="src/modules/ratings/entities/ratings.entity.ts">
 import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
@@ -1466,242 +1954,6 @@ export class Rating {
 
   @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   created_at!: Date; // [cite: 99]
-}
-</file>
-
-<file path="src/modules/ratings/ratings.controller.ts">
-import { Controller } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
-import { RatingsService } from './ratings.service'; // Ruta directa
-
-@ApiTags('Ratings')
-@Controller('ratings')
-export class RatingsController {
-  constructor(private readonly ratingsService: RatingsService) {}
-}
-</file>
-
-<file path="src/modules/ratings/ratings.module.ts">
-import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { Rating } from './entities/ratings.entity';
-import { RatingsService } from './ratings.service';
-import { RatingsController } from './ratings.controller';
-
-@Module({
-  imports: [TypeOrmModule.forFeature([Rating])],
-  controllers: [RatingsController],
-  providers: [RatingsService],
-  exports: [RatingsService],
-})
-export class RatingsModule {}
-</file>
-
-<file path="src/modules/ratings/ratings.service.ts">
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Rating } from './entities/ratings.entity';
-
-@Injectable()
-export class RatingsService {
-  constructor(
-    @InjectRepository(Rating)
-    private readonly ratingRepository: Repository<Rating>,
-  ) {}
-}
-</file>
-
-<file path="src/modules/sector/dto/create-sector.dto.ts">
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, IsString, Length } from 'class-validator';
-
-export class CreateSectorDto {
-  @ApiProperty({ 
-    example: 'Construcción y Albañilería', 
-    description: 'Nombre del sector económico o rubro comercial' 
-  })
-  @IsString()
-  @IsNotEmpty()
-  @Length(3, 100)
-  name: string;
-
-  @ApiProperty({ 
-    example: 'Servicios de construcción de viviendas, reparaciones y acabados', 
-    required: false,
-    description: 'Detalle opcional sobre las actividades del sector'
-  })
-  @IsString()
-  @IsOptional()
-  description?: string;
-}
-</file>
-
-<file path="src/modules/sector/dto/update-sector.dto.ts">
-import { PartialType } from '@nestjs/mapped-types';
-import { CreateSectorDto } from './create-sector.dto';
-import { IsBoolean, IsOptional } from 'class-validator';
-
-export class UpdateSectorDto extends PartialType(CreateSectorDto) {
-  @IsBoolean()
-  @IsOptional()
-  status?: boolean;
-}
-</file>
-
-<file path="src/modules/sector/entities/sector.entity.ts">
-import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
-
-@Entity('sectors')
-export class Sector {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
-  @Column({ type: 'varchar', length: 100, unique: true })
-  name: string;
-
-  @Column({ type: 'text', nullable: true })
-  description: string;
-
-  @Column({ type: 'boolean', default: true })
-  status: boolean;
-
-  @CreateDateColumn()
-  createdAt: Date;
-
-  @UpdateDateColumn()
-  updatedAt: Date;
-}
-</file>
-
-<file path="src/modules/sector/sector.controller.ts">
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseUUIDPipe } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
-import { SectorService } from './sector.service';
-import { CreateSectorDto } from './dto/create-sector.dto';
-import { UpdateSectorDto } from './dto/update-sector.dto';
-
-@ApiTags('Sectors') // <-- Agrupa los endpoints en una sección limpia
-@Controller('sectors')
-export class SectorController {
-  constructor(private readonly sectorService: SectorService) {}
-
-  @Post()
-  @ApiOperation({ summary: 'Crear un nuevo sector económico' })
-  @ApiResponse({ status: 201, description: 'Sector creado exitosamente.' })
-  @ApiResponse({ status: 400, description: 'Ya existe un sector con este nombre.' })
-  create(@Body() createSectorDto: CreateSectorDto) {
-    return this.sectorService.create(createSectorDto);
-  }
-
-  @Get()
-  @ApiOperation({ summary: 'Obtener todos los sectores activos (status: true)' })
-  @ApiResponse({ status: 200, description: 'Lista de sectores recuperada con éxito.' })
-  findAll() {
-    return this.sectorService.findAll();
-  }
-
-  @Get(':id')
-  @ApiOperation({ summary: 'Obtener un sector específico por su ID (UUID)' })
-  @ApiParam({ name: 'id', description: 'ID único del sector en formato UUID' })
-  @ApiResponse({ status: 200, description: 'Sector encontrado.' })
-  @ApiResponse({ status: 404, description: 'Sector no encontrado o se encuentra inactivo.' })
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.sectorService.findOne(id);
-  }
-
-  @Patch(':id')
-  @ApiOperation({ summary: 'Actualizar los datos de un sector' })
-  @ApiParam({ name: 'id', description: 'ID del sector a modificar' })
-  @ApiResponse({ status: 200, description: 'Sector actualizado correctamente.' })
-  @ApiResponse({ status: 404, description: 'No se pudo actualizar porque el sector no existe.' })
-  update(@Param('id', ParseUUIDPipe) id: string, @Body() updateSectorDto: UpdateSectorDto) {
-    return this.sectorService.update(id, updateSectorDto);
-  }
-
-  @Delete(':id')
-  @ApiOperation({ summary: 'Eliminar lógicamente un sector' })
-  @ApiParam({ name: 'id', description: 'ID del sector a desactivar' })
-  @ApiResponse({ status: 200, description: 'Sector desactivado con éxito (status cambiado a false).' })
-  remove(@Param('id', ParseUUIDPipe) id: string) {
-    return this.sectorService.remove(id);
-  }
-}
-</file>
-
-<file path="src/modules/sector/sector.module.ts">
-import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { SectorController } from './sector.controller';
-import { SectorService } from './sector.service';
-import { Sector } from './entities/sector.entity';
-
-@Module({
-  imports: [TypeOrmModule.forFeature([Sector])],
-  controllers: [SectorController],
-  providers: [SectorService],
-  exports: [SectorService], // Por si otros módulos necesitan usar sectores
-})
-export class SectorModule {}
-</file>
-
-<file path="src/modules/sector/sector.service.ts">
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Sector } from './entities/sector.entity';
-import { CreateSectorDto } from './dto/create-sector.dto';
-import { UpdateSectorDto } from './dto/update-sector.dto';
-
-@Injectable()
-export class SectorService {
-  constructor(
-    @InjectRepository(Sector)
-    private readonly sectorRepository: Repository<Sector>,
-  ) {}
-
-  async create(createSectorDto: CreateSectorDto): Promise<Sector> {
-    const sectorExists = await this.sectorRepository.findOne({
-      where: { name: createSectorDto.name },
-    });
-
-    if (sectorExists) {
-      throw new BadRequestException('El sector con este nombre ya existe.');
-    }
-
-    const newSector = this.sectorRepository.create(createSectorDto);
-    return await this.sectorRepository.save(newSector);
-  }
-
-  async findAll(): Promise<Sector[]> {
-    // Solo traemos los sectores que tengan status: true (activos)
-    return await this.sectorRepository.find({ where: { status: true } });
-  }
-
-  async findOne(id: string): Promise<Sector> {
-    const sector = await this.sectorRepository.findOne({ where: { id, status: true } });
-    if (!sector) {
-      throw new NotFoundException(`Sector con ID ${id} no fue encontrado o está inactivo.`);
-    }
-    return sector;
-  }
-
-  async update(id: string, updateSectorDto: UpdateSectorDto): Promise<Sector> {
-    const sector = await this.findOne(id); // Reutiliza la validación de si existe activo
-    
-    const updatedSector = Object.assign(sector, updateSectorDto);
-    return await this.sectorRepository.save(updatedSector);
-  }
-
-  async remove(id: string): Promise<{ message: string }> {
-    const sector = await this.findOne(id);
-    
-    // Borrado lógico: cambiamos el status a false
-    sector.status = false;
-    await this.sectorRepository.save(sector);
-    
-    return { message: `Sector eliminado lógicamente con éxito.` };
-  }
 }
 </file>
 
@@ -1760,268 +2012,378 @@ export class UsersController {
 }
 </file>
 
-<file path="src/modules/users/dto/create-user.dto.ts">
-import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsString, Length } from 'class-validator';
-
-export class CreateUserDto {
-  @ApiProperty({ 
-    example: 'trabajador@correo.com', 
-    description: 'Correo electrónico único de acceso' 
-  })
-  @IsEmail()
-  @IsNotEmpty()
-  email: string;
-
-  @ApiProperty({ 
-    example: 'ContraseñaSegura123', 
-    description: 'Contraseña en texto plano' 
-  })
-  @IsString()
-  @IsNotEmpty()
-  @Length(6, 20)
-  password: string;
-
-  @ApiProperty({ 
-    example: 'Worker', 
-    description: 'Rol del usuario: Admin, Employer o Worker' 
-  })
-  @IsString()
-  @IsNotEmpty()
-  role: string;
-
-  @ApiProperty({ 
-    example: 'Zelaya Central', 
-    description: 'Departamento para el filtro geográfico' 
-  })
-  @IsString()
-  @IsNotEmpty()
-  department: string;
-
-  @ApiProperty({ 
-    example: 'Nueva Guinea', 
-    description: 'Municipio de residencia' 
-  })
-  @IsString()
-  @IsNotEmpty()
-  municipality: string;
-}
-</file>
-
-<file path="src/modules/users/dto/update-user.dto.ts">
-import { PartialType } from '@nestjs/swagger';
-import { CreateUserDto } from './create-user.dto';
-
-export class UpdateUserDto extends PartialType(CreateUserDto) {}
-</file>
-
-<file path="src/modules/users/dto/user.dto.ts">
-import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsString, Length, IsEnum } from 'class-validator';
-
-export class CreateUserDto {
-  @ApiProperty({ 
-    example: 'trabajador@correo.com', 
-    description: 'Correo electrónico único de acceso' 
-  })
-  @IsEmail()
-  @IsNotEmpty()
-  email: string;
-
-  @ApiProperty({ 
-    example: 'ContraseñaSegura123', 
-    description: 'Contraseña en texto plano (se aplicará hash SHA-256 en la base de datos)' 
-  })
-  @IsString()
-  @IsNotEmpty()
-  @Length(6, 20)
-  password: string;
-
-  @ApiProperty({ 
-    example: 'Worker', 
-    description: 'Rol del usuario dentro del sistema: Admin, Employer o Worker' 
-  })
-  @IsString()
-  @IsNotEmpty()
-  role: string;
-
-  @ApiProperty({ 
-    example: 'Zelaya Central', 
-    description: 'Departamento para el algoritmo de filtrado geográfico' 
-  })
-  @IsString()
-  @IsNotEmpty()
-  department: string;
-
-  @ApiProperty({ 
-    example: 'Nueva Guinea', 
-    description: 'Municipio de residencia para la conexión de ofertas locales' 
-  })
-  @IsString()
-  @IsNotEmpty()
-  municipality: string;
-}
-</file>
-
 <file path="src/modules/users/entities/user.entity.ts">
 import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn } from 'typeorm';
-import { ApiProperty } from '@nestjs/swagger'; // <-- Asegúrate de que esta línea esté presente
+import { ApiProperty } from '@nestjs/swagger';
 
 @Entity('users')
 export class User {
   @PrimaryGeneratedColumn()
-  id!: number;
+  id!: number; //
 
   @ApiProperty({ example: 'usuario@correo.com', description: 'Correo electrónico único' })
   @Column({ type: 'varchar', unique: true })
-  email!: string;
+  email!: string; //
 
-  @ApiProperty({ example: 'password123', description: 'Contraseña del usuario' })
+  @ApiProperty({ example: 'password123', description: 'Contraseña cifrada' })
   @Column({ type: 'varchar' })
-  password_hash!: string;
+  password_hash!: string; //
 
   @ApiProperty({ example: 'Worker', description: 'Rol del usuario: Admin, Employer o Worker' })
   @Column({ type: 'varchar' }) 
-  role!: string;
+  role!: string; //
 
   @ApiProperty({ example: 'Zelaya Central', description: 'Departamento de residencia' })
   @Column({ type: 'varchar' })
-  department!: string;
+  department!: string; //
 
   @ApiProperty({ example: 'Nueva Guinea', description: 'Municipio de residencia' })
   @Column({ type: 'varchar' })
-  municipality!: string;
+  municipality!: string; //
 
   @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
-  created_at!: Date;
+  created_at!: Date; //
 }
 </file>
 
 <file path="src/modules/users/services/users.service.ts">
-import { Injectable } from '@nestjs/common';
-import { CreateUserDto } from '../dto/create-user.dto';
-import { UpdateUserDto } from '../dto/update-user.dto';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { User } from '../entities/user.entity';
 
 @Injectable()
 export class UsersService {
-  // Simulamos una base de datos temporal en memoria
-  private users: any[] = [];
+  constructor(
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+  ) {}
 
-  // Usamos 'any' temporalmente para que acepte el password_hash que le manda el AuthService
-  create(createUserDto: any) {
-    const newUser = {
-      id: Date.now(), // Generamos un ID numérico simulado
-      ...createUserDto,
-    };
-    this.users.push(newUser);
-    return newUser; // Ahora sí retornamos un OBJETO (newUser.id ya no dará error)
+  async create(createUserDto: any): Promise<any> {
+    const userExists = await this.userRepository.findOne({ where: { email: createUserDto.email } });
+    if (userExists) {
+      throw new BadRequestException('El correo electrónico ya se encuentra registrado.');
+    }
+    const newUser = this.userRepository.create(createUserDto);
+    const savedUser = await this.userRepository.save(newUser);
+    return savedUser as any;
   }
 
-  findAll() {
-    return this.users; // Retornamos el ARREGLO completo (ya se podrá usar el .find)
+  async findAll(): Promise<any[]> {
+    return await this.userRepository.find();
   }
 
-  findOne(id: number) {
-    return this.users.find(user => user.id === id);
+  async findOne(id: number): Promise<any> {
+    const user = await this.userRepository.findOne({ where: { id } });
+    if (!user) {
+      throw new NotFoundException(`Usuario con ID #${id} no encontrado.`);
+    }
+    return user as any;
   }
 
-  update(id: number, updateUserDto: UpdateUserDto) {
-    return { id, ...updateUserDto };
+  async update(id: number, updateUserDto: any): Promise<any> {
+    // 1. Verificamos si el usuario existe usando el método interno
+    const user = await this.findOne(id);
+    
+    // 2. Fusionamos los nuevos datos sobre la entidad existente
+    const updatedUser = this.userRepository.merge(user, updateUserDto);
+    
+    // 3. Guardamos los cambios en la base de datos
+    const result = await this.userRepository.save(updatedUser);
+    
+    // 4. Retornamos forzando el tipo para evitar bloqueos de TypeScript
+    return result as any;
   }
 
-  remove(id: number) {
-    return `Usuario #${id} eliminado`;
+  async remove(id: number): Promise<any> {
+    // Verificamos si existe antes de intentar borrar
+    await this.findOne(id);
+    await this.userRepository.delete(id);
+    return { message: `Usuario #${id} eliminado correctamente.` };
   }
 }
 </file>
 
-<file path="src/modules/users/users.module.ts">
+<file path="src/main.ts">
+import { NestFactory } from '@nestjs/core';
+import { AppModule } from './app.module';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { ValidationPipe } from '@nestjs/common'; // <-- Herramienta de validación global
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+
+  // ACTIVAR VALIDACIÓN GLOBAL: Obliga a que todas las peticiones cumplan con las reglas de los DTOs
+  app.useGlobalPipes(new ValidationPipe({
+    whitelist: true,            // Remueve propiedades que no estén explícitamente en el DTO
+    forbidNonWhitelisted: true, // Lanza un error si mandan campos de más en el JSON
+    transform: true,            // Convierte tipos automáticamente si el DTO lo requiere
+  }));
+
+const config = new DocumentBuilder()
+    .setTitle('LaborApps API')
+    .setDescription('Documentación de la plataforma para conectar empleadores y trabajadores.')
+    .setVersion('1.0')
+    .addTag('Auth')
+    .addTag('Users')
+    .addTag('Profiles')
+    .addTag('Jobs')
+    .addTag('Job Applications')
+    .addTag('Businesses')
+    .build();
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api/docs', app, document);
+
+  await app.listen(3000);
+  console.log(`Servidor corriendo en: http://localhost:3000/api/docs`);
+}
+bootstrap();
+</file>
+
+<file path="src/modules/businesses/business.module.ts">
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { UsersController } from './controllers/users.controller';
-import { UsersService } from './services/users.service';
-import { User } from './entities/user.entity';
+import { Business } from './entities/business.entity';
+import { BusinessService } from './services/business.service'; 
+import { BusinessesController } from './controllers/businesses.controller';
 
 @Module({
-  // Registramos la entidad User para que TypeORM cree tu tabla 'users'
-  imports: [TypeOrmModule.forFeature([User])],
-  controllers: [UsersController],
-  providers: [UsersService],
-  // Exportamos el servicio por si otro módulo necesita buscar usuarios
-  exports: [UsersService], 
+  imports: [TypeOrmModule.forFeature([Business])],
+  controllers: [BusinessesController],
+  providers: [BusinessService],
+  exports: [BusinessService],
 })
-export class UsersModule {}
+export class BusinessesModule {}
 </file>
 
-<file path="test/app.e2e-spec.ts">
-import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
-import * as request from 'supertest';
-import { App } from 'supertest/types';
-import { AppModule } from './../src/app.module';
+<file path="src/modules/businesses/controllers/businesses.controller.ts">
+import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
+import { BusinessService } from '../services/business.service'; // O '../businesses.service' si no lo metiste en carpeta services
+import { CreateBusinessDto } from '../dto/create-business.dto';
+import { UpdateBusinessDto } from '../dto/update-business.dto';
+import { JwtAuthGuard } from '../../../auth/jwt-auth.guard'; // Verifica que esta ruta apunte bien a tu AuthGuard
 
-describe('AppController (e2e)', () => {
-  let app: INestApplication<App>;
+@ApiTags('Businesses')
+@Controller('businesses')
+export class BusinessesController {
+  constructor(private readonly businessesService: BusinessService) {}
 
-  beforeEach(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
+  @Post()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Registrar un nuevo negocio o microempresa (Requiere Autenticación)' })
+  @ApiResponse({ status: 201, description: 'Negocio registrado exitosamente.' })
+  create(@Body() createBusinessDto: CreateBusinessDto) {
+    return this.businessesService.create(createBusinessDto);
+  }
 
-    app = moduleFixture.createNestApplication();
-    await app.init();
-  });
+  @Get()
+  @ApiOperation({ summary: 'Obtener la lista de todos los negocios registrados' })
+  @ApiResponse({ status: 200, description: 'Retorna el arreglo de empresas.' })
+  findAll() {
+    return this.businessesService.findAll();
+  }
 
-  it('/ (GET)', () => {
-    return request(app.getHttpServer())
-      .get('/')
-      .expect(200)
-      .expect('Hello World!');
-  });
-});
-</file>
+  @Get(':id')
+  @ApiOperation({ summary: 'Obtener los datos de un negocio por su ID' })
+  @ApiParam({ name: 'id', description: 'ID numérico del negocio', example: 1 })
+  @ApiResponse({ status: 200, description: 'Negocio encontrado.' })
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.businessesService.findOne(id);
+  }
 
-<file path="test/jest-e2e.json">
-{
-  "moduleFileExtensions": ["js", "json", "ts"],
-  "rootDir": ".",
-  "testEnvironment": "node",
-  "testRegex": ".e2e-spec.ts$",
-  "transform": {
-    "^.+\\.(t|j)s$": "ts-jest"
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Actualizar los datos de un negocio (Requiere Autenticación)' })
+  @ApiParam({ name: 'id', description: 'ID numérico del negocio a editar' })
+  @ApiResponse({ status: 200, description: 'Negocio actualizado correctamente.' })
+  update(@Param('id', ParseIntPipe) id: number, @Body() updateBusinessDto: UpdateBusinessDto) {
+    return this.businessesService.update(id, updateBusinessDto);
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Eliminar un negocio del sistema (Requiere Autenticación)' })
+  @ApiParam({ name: 'id', description: 'ID numérico del negocio a eliminar' })
+  @ApiResponse({ status: 200, description: 'Negocio eliminado exitosamente.' })
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.businessesService.remove(id);
   }
 }
 </file>
 
-<file path="tsconfig.build.json">
-{
-  "extends": "./tsconfig.json",
-  "exclude": ["node_modules", "test", "dist", "**/*spec.ts"]
+<file path="src/modules/businesses/services/business.service.ts">
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Business } from '../entities/business.entity';
+import { CreateBusinessDto } from '../dto/create-business.dto';
+import { UpdateBusinessDto } from '../dto/update-business.dto';
+
+@Injectable()
+export class BusinessService {
+  constructor(
+    @InjectRepository(Business)
+    private readonly businessRepository: Repository<Business>,
+  ) {}
+
+  async create(createBusinessDto: CreateBusinessDto): Promise<Business> {
+    const { userId, companyName, address } = createBusinessDto;
+    const newBusiness = this.businessRepository.create({
+      name: companyName,
+      address: address || '',
+      tax_id: `RUC-${Date.now()}`, // Fallback dinámico temporal para el campo único
+      user: { id: userId } as any,
+    });
+    return await this.businessRepository.save(newBusiness);
+  }
+
+  async findAll(): Promise<Business[]> {
+    return await this.businessRepository.find({ relations: ['user'] });
+  }
+
+  async findOne(id: number): Promise<Business> {
+    const business = await this.businessRepository.findOne({ where: { id }, relations: ['user'] });
+    if (!business) throw new NotFoundException(`El negocio #${id} no existe.`);
+    return business;
+  }
+
+  async update(id: number, updateBusinessDto: UpdateBusinessDto) {
+    await this.businessRepository.update(id, updateBusinessDto as any);
+    return this.findOne(id);
+  }
+
+  async remove(id: number) {
+    await this.businessRepository.delete(id);
+    return { message: `El negocio #${id} fue eliminado.` };
+  }
 }
 </file>
 
-<file path="tsconfig.json">
-{
-  "compilerOptions": {
-    "module": "commonjs",
-    "declaration": true,
-    "removeComments": true,
-    "emitDecoratorMetadata": true,
-    "experimentalDecorators": true,
-    "allowSyntheticDefaultImports": true,
-    "target": "ES2023",
-    "sourceMap": true,
-    "outDir": "./dist",
-    // "baseUrl": "./",
-    "incremental": true,
-    "skipLibCheck": true,
-    "strictNullChecks": true,
-    "forceConsistentCasingInFileNames": true,
-    "noImplicitAny": false,
-    "strictBindCallApply": false,
-    "noFallthroughCasesInSwitch": false
-  }
+<file path="src/modules/jobs/jobs.module.ts">
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { JobsController } from './jobs.controller';
+import { JobsService } from './jobs.service';
+import { Job } from './entities/job.entity';
+import { JobCategory } from './entities/job-category.entity';
+import { JobApplication } from './entities/job-application.entity'; // <-- Importa tu nueva entidad
+
+@Module({
+  imports: [TypeOrmModule.forFeature([Job, JobCategory, JobApplication])], // <-- Regístrala aquí en el arreglo
+  controllers: [JobsController],
+  providers: [JobsService],
+  exports: [JobsService],
+})
+export class JobsModule {}
+</file>
+
+<file path="src/modules/jobs/entities/job.entity.ts">
+import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { User } from '../../users/entities/user.entity';
+import { Business } from '../../businesses/entities/business.entity';
+import { JobCategory } from './job-category.entity';
+
+@Entity('jobs')
+export class Job {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column({ type: 'varchar', length: 150 })
+  title: string;
+
+  @Column({ type: 'text' })
+  description: string;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  salary: number;
+
+  @Column({ type: 'varchar', default: 'Open' }) // Open, Closed, In_Progress
+  status: string;
+
+  // Relación con el creador/empleador (ID numérico)
+  @ManyToOne(() => User)
+  @JoinColumn({ name: 'employer_id' })
+  employer: User;
+
+  // Relación con la empresa (opcional si trabaja independiente)
+  @ManyToOne(() => Business, { nullable: true })
+  @JoinColumn({ name: 'business_id' })
+  business?: Business;
+
+  // Relación con la categoría de empleo (ID numérico)
+  @ManyToOne(() => JobCategory, (category) => category.jobs, { onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'category_id' })
+  category: JobCategory;
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
 }
+</file>
+
+<file path="src/app.module.ts">
+import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config'; // Importamos ConfigService
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuthModule } from './auth/auth.modules';
+
+// Importamos modulos
+import { JobsModule } from './modules/jobs/jobs.module';
+import { UsersModule } from './modules/users/users.module';
+import { BusinessesModule } from './modules/businesses/business.module';
+
+// Agregamos los módulos de soporte para cumplir con la defensa
+import { RatingsModule } from './modules/ratings/ratings.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { SectorModule } from './modules/sector/sector.module';
+import { MessagesModule } from './modules/messages/messages.module';
+import { ProfilesModule } from './modules/users/profiles/profiles.module';
+import { JobApplicationsModule } from './modules/job-applications/job-applications.module';
+
+@Module({
+  imports: [
+    // Cargamos variables de entorno (.env) de forma global
+    ConfigModule.forRoot({ isGlobal: true }),
+
+    // Usamos forRootAsync para esperar a que las variables carguen primero
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        type: 'postgres',
+        host: configService.get<string>('DB_HOST'),
+        port: configService.get<number>('DB_PORT') || 5432,
+        username: configService.get<string>('DB_USERNAME'),
+        // Aquí forzamos la conversión a String asegurando que el dato ya exista
+        password: String(configService.get<string>('DB_PASSWORD')), 
+        database: configService.get<string>('DB_NAME'),
+        autoLoadEntities: true, 
+        synchronize: true,      
+      }),
+    }),
+
+    // Registramos todos los módulos del sistema LaborApps
+    AuthModule,
+    UsersModule,
+    JobsModule,
+    BusinessesModule,
+    RatingsModule,      // <-- Agregado para el sistema de reputación
+    NotificationsModule, 
+    SectorModule, 
+    MessagesModule,
+    ProfilesModule,
+    JobApplicationsModule,     // <-- Agregado para el sistema de alertas
+  ],
+  controllers: [],
+  providers: [],
+})
+export class AppModule {}
 </file>
 
 </files>

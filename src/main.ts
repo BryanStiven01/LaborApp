@@ -13,15 +13,17 @@ async function bootstrap() {
     transform: true,            // Convierte tipos automáticamente si el DTO lo requiere
   }));
 
-  const config = new DocumentBuilder()
+const config = new DocumentBuilder()
     .setTitle('LaborApps API')
     .setDescription('Documentación de la plataforma para conectar empleadores y trabajadores.')
     .setVersion('1.0')
+    .addTag('Auth')
     .addTag('Users')
+    .addTag('Profiles')
     .addTag('Jobs')
+    .addTag('Job Applications')
     .addTag('Businesses')
     .build();
-
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
 

@@ -13,6 +13,8 @@ import { RatingsModule } from './modules/ratings/ratings.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { SectorModule } from './modules/sector/sector.module';
 import { MessagesModule } from './modules/messages/messages.module';
+import { ProfilesModule } from './modules/users/profiles/profiles.module';
+import { JobApplicationsModule } from './modules/job-applications/job-applications.module';
 
 @Module({
   imports: [
@@ -44,7 +46,9 @@ import { MessagesModule } from './modules/messages/messages.module';
     RatingsModule,      // <-- Agregado para el sistema de reputación
     NotificationsModule, 
     SectorModule, 
-    MessagesModule,     // <-- Agregado para el sistema de alertas
+    MessagesModule,
+    ProfilesModule,
+    JobApplicationsModule,     // <-- Agregado para el sistema de alertas
   ],
   controllers: [],
   providers: [],
