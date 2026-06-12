@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { AuthModule } from './auth/auth.modules';
+import { AuthModule } from './auth/auth.module';
 
 // 1. Importamos modulos
 import { JobsModule } from './modules/jobs/jobs.module';

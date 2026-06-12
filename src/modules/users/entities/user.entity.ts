@@ -14,18 +14,30 @@ export class User {
   @Column({ type: 'varchar' })
   password_hash!: string;
 
-  @ApiProperty({ example: 'Worker', description: 'Rol del usuario: Admin, Employer o Worker' })
+  // --- AGREGA ESTAS DOS LÍNEAS ---
+  @ApiProperty({ example: 'Pedro', description: 'Nombre del usuario' })
+  @Column({ type: 'varchar' })
+  first_name!: string;
+
+  @ApiProperty({ example: 'Pérez', description: 'Apellido del usuario' })
+  @Column({ type: 'varchar' })
+  last_name!: string;
+  // -------------------------------
+
+  @ApiProperty({ example: 'Worker', description: 'Rol del usuario' })
   @Column({ type: 'varchar' }) 
   role!: string;
 
-  @ApiProperty({ example: 'Zelaya Central', description: 'Departamento de residencia' })
+  @ApiProperty({ example: 'Zelaya Central', description: 'Departamento' })
   @Column({ type: 'varchar' })
   department!: string;
 
-  @ApiProperty({ example: 'Nueva Guinea', description: 'Municipio de residencia' })
+  @ApiProperty({ example: 'Nueva Guinea', description: 'Municipio' })
   @Column({ type: 'varchar' })
   municipality!: string;
 
   @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   created_at!: Date;
+
+  
 }

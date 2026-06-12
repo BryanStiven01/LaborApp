@@ -1,9 +1,12 @@
-import { Controller, Post, Body, Patch, Param, Get, Query, Delete, ParseIntPipe, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, Patch, Param, Get, Query, Delete, ParseIntPipe } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiQuery, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { MessagesService } from './messages.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { UpdateMessageDto } from './dto/update-message.dto';
-import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+
+// <-- Importamos tus nuevas herramientas de seguridad
+import { Auth } from '../../auth/decorators/auth.decorator';
+import { ValidRoles } from '../../auth/interfaces/valid-roles.interface';
 
 @ApiTags('Messages')
 @Controller('messages')
@@ -11,9 +14,10 @@ export class MessagesController {
   constructor(private readonly messagesService: MessagesService) {}
 
   @Post()
-  @UseGuards(JwtAuthGuard)
+  // <-- Magia: Solo los actores principales del negocio pueden chatear
+  @Auth(ValidRoles.empleador, ValidRoles.trabajador) 
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Enviar un mensaje inicial y generar link de WhatsApp (Requiere Autenticación)' })
+  @ApiOperation({ summary: 'Enviar un mensaje inicial y generar link de WhatsApp' })
   @ApiResponse({ status: 201, description: 'Mensaje guardado en base de datos y link de wa.me generado exitosamente.' })
   @ApiResponse({ status: 400, description: 'Error de validación (ej. formato de teléfono incorrecto).' })
   create(@Body() createMessageDto: CreateMessageDto) {
@@ -21,7 +25,8 @@ export class MessagesController {
   }
 
   @Get('history')
-  @UseGuards(JwtAuthGuard)
+  // <-- Nota: El administrador se incluye aquí por si necesita auditar conversaciones en caso de reportes
+  @Auth(ValidRoles.empleador, ValidRoles.trabajador, ValidRoles.administrador) 
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Obtener el historial de chat entre dos usuarios' })
   @ApiQuery({ name: 'userA', description: 'ID del primer usuario (ej: Candidato)' })
@@ -35,7 +40,7 @@ export class MessagesController {
   }
 
   @Patch(':id')
-  @UseGuards(JwtAuthGuard)
+  @Auth(ValidRoles.empleador, ValidRoles.trabajador)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Editar el contenido de un mensaje (Solo antes de la redirección a WhatsApp)' })
   @ApiParam({ name: 'id', description: 'ID numérico del mensaje a editar', example: 1 })
@@ -45,12 +50,13 @@ export class MessagesController {
   }
 
   // ==========================================
-  // NUEVO: ELIMINAR MENSAJE (DELETE)
+  // ELIMINAR MENSAJE (DELETE)
   // ==========================================
   @Delete(':id')
-  @UseGuards(JwtAuthGuard)
+  // <-- El administrador también tiene poder de moderación para borrar mensajes inapropiados
+  @Auth(ValidRoles.empleador, ValidRoles.trabajador, ValidRoles.administrador)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Eliminar un mensaje del historial (Requiere Autenticación)' })
+  @ApiOperation({ summary: 'Eliminar un mensaje del historial' })
   @ApiParam({ name: 'id', description: 'ID numérico del mensaje a eliminar' })
   @ApiResponse({ status: 200, description: 'Mensaje eliminado.' })
   remove(@Param('id', ParseIntPipe) id: number) {
