@@ -1,18 +1,22 @@
-import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn } from 'typeorm';
-import { ApiProperty } from '@nestjs/swagger'; // <-- Asegúrate de que esta línea esté presente
-
+import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, OneToOne } from 'typeorm'; // Añadimos OneToOne
+import { ApiProperty } from '@nestjs/swagger';
+import { Profile } from '../profiles/entities/profile.entity';
 @Entity('users')
 export class User {
   @PrimaryGeneratedColumn()
-  id!: number;
+  id!: number; //
+  
 
   @ApiProperty({ example: 'usuario@correo.com', description: 'Correo electrónico único' })
   @Column({ type: 'varchar', unique: true })
-  email!: string;
+  email!: string; //
 
-  @ApiProperty({ example: 'password123', description: 'Contraseña del usuario' })
+  @OneToOne(() => Profile, (profile) => profile.user)
+  profile: Profile;
+
+  @ApiProperty({ example: 'password123', description: 'Contraseña cifrada' })
   @Column({ type: 'varchar' })
-  password_hash!: string;
+  password_hash!: string; //
 
   // --- AGREGA ESTAS DOS LÍNEAS ---
   @ApiProperty({ example: 'Pedro', description: 'Nombre del usuario' })
@@ -26,18 +30,16 @@ export class User {
 
   @ApiProperty({ example: 'Worker', description: 'Rol del usuario' })
   @Column({ type: 'varchar' }) 
-  role!: string;
+  role!: string; //
 
   @ApiProperty({ example: 'Zelaya Central', description: 'Departamento' })
   @Column({ type: 'varchar' })
-  department!: string;
+  department!: string; //
 
   @ApiProperty({ example: 'Nueva Guinea', description: 'Municipio' })
   @Column({ type: 'varchar' })
-  municipality!: string;
+  municipality!: string; //
 
   @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   created_at!: Date;
-
-  
 }

@@ -1,4 +1,4 @@
-import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { Business } from '../../businesses/entities/business.entity';
 import { JobCategory } from './job-category.entity';
@@ -6,38 +6,41 @@ import { JobCategory } from './job-category.entity';
 @Entity('jobs')
 export class Job {
   @PrimaryGeneratedColumn()
-  id: number;
+  id!: number;
 
-  @Column({ type: 'varchar', length: 150 })
-  title: string;
+  @Column({ name: 'employer_id' })
+  employerId!: number;
 
-  @Column({ type: 'text' })
-  description: string;
-
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
-  salary: number;
-
-  @Column({ type: 'varchar', default: 'Open' }) // Open, Closed, In_Progress
-  status: string;
-
-  // Relación con el creador/empleador (ID numérico)
   @ManyToOne(() => User)
   @JoinColumn({ name: 'employer_id' })
-  employer: User;
+  employer!: User;
 
-  // Relación con la empresa (opcional si trabaja independiente)
+  @Column({ type: 'varchar', length: 150 })
+  title!: string;
+
+  @Column({ type: 'text' })
+  description!: string;
+
+  // Campo nuevo solicitado
+  @Column({ name: 'job_type', type: 'varchar', length: 50, nullable: true })
+  jobType!: string;
+
+  // Campo nuevo solicitado
+  @Column({ name: 'ad_payment_status', type: 'varchar', length: 50, nullable: true })
+  adPaymentStatus!: string;
+
+  // Campo nuevo solicitado
+  @Column({ name: 'is_active', type: 'boolean', default: true })
+  isActive!: boolean;
+
   @ManyToOne(() => Business, { nullable: true })
   @JoinColumn({ name: 'business_id' })
   business?: Business;
 
-  // Relación con la categoría de empleo (ID numérico)
   @ManyToOne(() => JobCategory, (category) => category.jobs, { onDelete: 'SET NULL' })
   @JoinColumn({ name: 'category_id' })
-  category: JobCategory;
+  category!: JobCategory;
 
-  @CreateDateColumn()
-  createdAt: Date;
-
-  @UpdateDateColumn()
-  updatedAt: Date;
+  @CreateDateColumn({ name: 'created_at' })
+  createdAt!: Date;
 }

@@ -2,32 +2,38 @@ import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGenerat
 import { User } from '../../users/entities/user.entity';
 import { Job } from '../../jobs/entities/job.entity';
 
-@Entity('ratings') // [cite: 92]
+@Entity('ratings')
 export class Rating {
   @PrimaryGeneratedColumn()
-  id!: number; // [cite: 93]
+  id!: number;
 
-  // Quien da la calificación 
+  @Column({ name: 'reviewer_id' })
+  reviewerId!: number;
+
   @ManyToOne(() => User)
   @JoinColumn({ name: 'reviewer_id' })
   reviewer!: User;
 
-  // Quien recibe la calificación 
+  @Column({ name: 'reviewee_id' })
+  revieweeId!: number;
+
   @ManyToOne(() => User)
   @JoinColumn({ name: 'reviewee_id' })
   reviewee!: User;
 
-  // El trabajo por el cual se califica (es opcional, por eso el ?) 
+  @Column({ name: 'job_id', nullable: true })
+  jobId?: number;
+
   @ManyToOne(() => Job, { nullable: true })
   @JoinColumn({ name: 'job_id' })
   job?: Job;
 
-  @Column({ type: 'int4' })
-  score!: number; // Valor del 1 al 5 [cite: 97]
+  @Column({ type: 'int', default: 5 })
+  score!: number;
 
   @Column({ type: 'text', nullable: true })
-  comment?: string; // [cite: 98]
+  comment?: string;
 
-  @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
-  created_at!: Date; // [cite: 99]
+  @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
+  createdAt!: Date;
 }

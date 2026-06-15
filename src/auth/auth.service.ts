@@ -28,15 +28,16 @@ export class AuthService {
     const passwordHash = crypto.createHash('sha256').update(password).digest('hex');
 
     // ENVIAMOS TODOS LOS CAMPOS AL SERVICIO PARA QUE POSTGRES LOS RECIBA
+   // En src/auth/auth.service.ts
     const newUser = await this.usersService.create({
-        email,
-        password_hash: passwordHash,
-        role,
-        department,
-        municipality,
-        first_name,
-        last_name
-}); // <-- ¡Ya no necesitas el 'as any'! // <--- Este "as any" le dice a TypeScript: "Confía en mí, yo sé lo que hago"
+    email,
+    password_hash: passwordHash, // Asegúrate que este nombre coincida con la Entidad
+    role,
+    department,
+    municipality,
+    first_name,
+    last_name
+    }); // <-- ¡Ya no necesitas el 'as any'! // <--- Este "as any" le dice a TypeScript: "Confía en mí, yo sé lo que hago"
 
     return {
       message: 'Usuario registrado exitosamente de forma segura.',

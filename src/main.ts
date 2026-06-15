@@ -17,7 +17,7 @@ async function bootstrap() {
     .setTitle('LaborApps API')
     .setDescription('Documentación de la plataforma para conectar empleadores y trabajadores.')
     .setVersion('1.0')
-    .addBearerAuth() // <--- ¡ESTA ES LA LÍNEA MÁGICA QUE AGREGAMOS!
+    .addBearerAuth() // Para la autenticación con JWT
     .addTag('Users')
     .addTag('Jobs')
     .addTag('Businesses')
