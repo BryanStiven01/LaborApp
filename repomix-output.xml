@@ -117,164 +117,6 @@ tsconfig.json
 <files>
 This section contains the contents of the repository's files.
 
-<file path="src/modules/job-applications/dto/create-job-application.dto.ts">
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsNumber } from 'class-validator';
-
-export class CreateJobApplicationDto {
-  @ApiProperty({ example: 1, description: 'ID del empleo al que se postula' })
-  @IsNumber()
-  @IsNotEmpty()
-  jobId: number;
-
-  @ApiProperty({ example: 2, description: 'ID del usuario trabajador' })
-  @IsNumber()
-  @IsNotEmpty()
-  candidateId: number;
-}
-</file>
-
-<file path="src/modules/job-applications/dto/update-job-application.dto.ts">
-import { PartialType } from '@nestjs/swagger';
-import { CreateJobApplicationDto } from './create-job-application.dto';
-
-export class UpdateJobApplicationDto extends PartialType(CreateJobApplicationDto) {}
-</file>
-
-<file path="src/modules/job-applications/entities/job-application.entity.ts">
-import { Entity, PrimaryGeneratedColumn, ManyToOne, JoinColumn, CreateDateColumn } from 'typeorm';
-import { User } from '../../users/entities/user.entity';
-import { Job } from '../../jobs/entities/job.entity';
-
-@Entity('job_applications')
-export class JobApplication {
-  @PrimaryGeneratedColumn()
-  id!: number;
-
-  // Relación Muchos a Uno: Muchas postulaciones pertenecen a un solo Trabajo (job_id)
-  @ManyToOne(() => Job)
-  @JoinColumn({ name: 'job_id' })
-  job!: Job;
-
-  // Relación Muchos a Uno: Muchas postulaciones pertenecen a un solo Usuario candidato (applicant_id)
-  @ManyToOne(() => User)
-  @JoinColumn({ name: 'applicant_id' })
-  applicant!: User;
-
-  @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
-  appliedAt!: Date;
-}
-</file>
-
-<file path="src/modules/job-applications/job-applications.controller.ts">
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
-import { JobApplicationsService } from './job-applications.service';
-import { CreateJobApplicationDto } from './dto/create-job-application.dto';
-import { UpdateJobApplicationDto } from './dto/update-job-application.dto';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-
-@ApiTags('Job Applications') // Etiqueta solicitada en la tarjeta de Trello
-@Controller('job-applications')
-export class JobApplicationsController {
-  constructor(private readonly jobApplicationsService: JobApplicationsService) {}
-
-  @Post()
-  @ApiOperation({ summary: 'Crear una nueva postulación a empleo' })
-  @ApiResponse({ status: 201, description: 'La postulación ha sido creada exitosamente.' })
-  @ApiResponse({ status: 400, description: 'Datos de postulación inválidos.' })
-  create(@Body() createJobApplicationDto: CreateJobApplicationDto) {
-    return this.jobApplicationsService.create(createJobApplicationDto);
-  }
-
-  @Get()
-  @ApiOperation({ summary: 'Obtener todas las postulaciones' })
-  @ApiResponse({ status: 200, description: 'Listado de postulaciones obtenido correctamente.' })
-  findAll() {
-    return this.jobApplicationsService.findAll();
-  }
-
-  @Get(':id')
-  @ApiOperation({ summary: 'Obtener una postulación por su ID' })
-  @ApiResponse({ status: 200, description: 'Postulación encontrada.' })
-  @ApiResponse({ status: 404, description: 'Postulación no encontrada.' })
-  findOne(@Param('id') id: string) {
-    return this.jobApplicationsService.findOne(+id);
-  }
-
-  @Patch(':id')
-  @ApiOperation({ summary: 'Actualizar una postulación por ID' })
-  @ApiResponse({ status: 200, description: 'Postulación actualizada con éxito.' })
-  update(@Param('id') id: string, @Body() updateJobApplicationDto: UpdateJobApplicationDto) {
-    return this.jobApplicationsService.update(+id, updateJobApplicationDto);
-  }
-
-  @Delete(':id')
-  @ApiOperation({ summary: 'Eliminar una postulación por ID' })
-  @ApiResponse({ status: 200, description: 'Postulación eliminada correctamente.' })
-  remove(@Param('id') id: string) {
-    return this.jobApplicationsService.remove(+id);
-  }
-}
-</file>
-
-<file path="src/modules/job-applications/job-applications.module.ts">
-import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { JobApplicationsService } from './job-applications.service';
-import { JobApplicationsController } from './job-applications.controller';
-import { JobApplication } from '../jobs/entities/job-application.entity'; // Apunta a la entidad existente
-
-@Module({
-  imports: [TypeOrmModule.forFeature([JobApplication])],
-  controllers: [JobApplicationsController],
-  providers: [JobApplicationsService],
-})
-export class JobApplicationsModule {}
-</file>
-
-<file path="src/modules/job-applications/job-applications.service.ts">
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { JobApplication } from './entities/job-application.entity';
-
-@Injectable()
-export class JobApplicationsService {
-  constructor(
-    @InjectRepository(JobApplication)
-    private readonly repo: Repository<JobApplication>,
-  ) {}
-
-  async create(dto: any): Promise<JobApplication> {
-    const newApp = this.repo.create({
-      job: { id: dto.jobId } as any,
-      applicant: { id: dto.candidateId } as any,
-    });
-    return await this.repo.save(newApp);
-  }
-
-  async findAll(): Promise<JobApplication[]> {
-    return await this.repo.find({ relations: ['job', 'applicant'] });
-  }
-
-  async findOne(id: number): Promise<JobApplication> {
-    const app = await this.repo.findOne({ where: { id }, relations: ['job', 'applicant'] });
-    if (!app) throw new NotFoundException(`Postulación #${id} no existe.`);
-    return app;
-  }
-
-  async update(id: number, dto: any) {
-    // Las postulaciones usualmente no cambian de relaciones directas, pero guardamos metadatos si fuesen necesarios
-    return this.findOne(id);
-  }
-
-  async remove(id: number) {
-    await this.repo.delete(id);
-    return { message: `Postulación #${id} removida.` };
-  }
-}
-</file>
-
 <file path=".gitignore">
 # compiled output
 /dist
@@ -464,6 +306,164 @@ import { PartialType } from '@nestjs/swagger';
 import { CreateBusinessDto } from './create-business.dto';
 
 export class UpdateBusinessDto extends PartialType(CreateBusinessDto) {}
+</file>
+
+<file path="src/modules/job-applications/dto/create-job-application.dto.ts">
+import { ApiProperty } from '@nestjs/swagger';
+import { IsNotEmpty, IsNumber } from 'class-validator';
+
+export class CreateJobApplicationDto {
+  @ApiProperty({ example: 1, description: 'ID del empleo al que se postula' })
+  @IsNumber()
+  @IsNotEmpty()
+  jobId: number;
+
+  @ApiProperty({ example: 2, description: 'ID del usuario trabajador' })
+  @IsNumber()
+  @IsNotEmpty()
+  candidateId: number;
+}
+</file>
+
+<file path="src/modules/job-applications/dto/update-job-application.dto.ts">
+import { PartialType } from '@nestjs/swagger';
+import { CreateJobApplicationDto } from './create-job-application.dto';
+
+export class UpdateJobApplicationDto extends PartialType(CreateJobApplicationDto) {}
+</file>
+
+<file path="src/modules/job-applications/entities/job-application.entity.ts">
+import { Entity, PrimaryGeneratedColumn, ManyToOne, JoinColumn, CreateDateColumn } from 'typeorm';
+import { User } from '../../users/entities/user.entity';
+import { Job } from '../../jobs/entities/job.entity';
+
+@Entity('job_applications')
+export class JobApplication {
+  @PrimaryGeneratedColumn()
+  id!: number;
+
+  // Relación Muchos a Uno: Muchas postulaciones pertenecen a un solo Trabajo (job_id)
+  @ManyToOne(() => Job)
+  @JoinColumn({ name: 'job_id' })
+  job!: Job;
+
+  // Relación Muchos a Uno: Muchas postulaciones pertenecen a un solo Usuario candidato (applicant_id)
+  @ManyToOne(() => User)
+  @JoinColumn({ name: 'applicant_id' })
+  applicant!: User;
+
+  @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  appliedAt!: Date;
+}
+</file>
+
+<file path="src/modules/job-applications/job-applications.controller.ts">
+import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { JobApplicationsService } from './job-applications.service';
+import { CreateJobApplicationDto } from './dto/create-job-application.dto';
+import { UpdateJobApplicationDto } from './dto/update-job-application.dto';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+
+@ApiTags('Job Applications') // Etiqueta solicitada en la tarjeta de Trello
+@Controller('job-applications')
+export class JobApplicationsController {
+  constructor(private readonly jobApplicationsService: JobApplicationsService) {}
+
+  @Post()
+  @ApiOperation({ summary: 'Crear una nueva postulación a empleo' })
+  @ApiResponse({ status: 201, description: 'La postulación ha sido creada exitosamente.' })
+  @ApiResponse({ status: 400, description: 'Datos de postulación inválidos.' })
+  create(@Body() createJobApplicationDto: CreateJobApplicationDto) {
+    return this.jobApplicationsService.create(createJobApplicationDto);
+  }
+
+  @Get()
+  @ApiOperation({ summary: 'Obtener todas las postulaciones' })
+  @ApiResponse({ status: 200, description: 'Listado de postulaciones obtenido correctamente.' })
+  findAll() {
+    return this.jobApplicationsService.findAll();
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Obtener una postulación por su ID' })
+  @ApiResponse({ status: 200, description: 'Postulación encontrada.' })
+  @ApiResponse({ status: 404, description: 'Postulación no encontrada.' })
+  findOne(@Param('id') id: string) {
+    return this.jobApplicationsService.findOne(+id);
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: 'Actualizar una postulación por ID' })
+  @ApiResponse({ status: 200, description: 'Postulación actualizada con éxito.' })
+  update(@Param('id') id: string, @Body() updateJobApplicationDto: UpdateJobApplicationDto) {
+    return this.jobApplicationsService.update(+id, updateJobApplicationDto);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Eliminar una postulación por ID' })
+  @ApiResponse({ status: 200, description: 'Postulación eliminada correctamente.' })
+  remove(@Param('id') id: string) {
+    return this.jobApplicationsService.remove(+id);
+  }
+}
+</file>
+
+<file path="src/modules/job-applications/job-applications.module.ts">
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { JobApplicationsService } from './job-applications.service';
+import { JobApplicationsController } from './job-applications.controller';
+import { JobApplication } from './entities/job-application.entity'; 
+
+@Module({
+  imports: [TypeOrmModule.forFeature([JobApplication])],
+  controllers: [JobApplicationsController],
+  providers: [JobApplicationsService],
+})
+export class JobApplicationsModule {}
+</file>
+
+<file path="src/modules/job-applications/job-applications.service.ts">
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { JobApplication } from './entities/job-application.entity';
+
+@Injectable()
+export class JobApplicationsService {
+  constructor(
+    @InjectRepository(JobApplication)
+    private readonly repo: Repository<JobApplication>,
+  ) {}
+
+  async create(dto: any): Promise<JobApplication> {
+    const newApp = this.repo.create({
+      job: { id: dto.jobId } as any,
+      applicant: { id: dto.candidateId } as any,
+    });
+    return await this.repo.save(newApp);
+  }
+
+  async findAll(): Promise<JobApplication[]> {
+    return await this.repo.find({ relations: ['job', 'applicant'] });
+  }
+
+  async findOne(id: number): Promise<JobApplication> {
+    const app = await this.repo.findOne({ where: { id }, relations: ['job', 'applicant'] });
+    if (!app) throw new NotFoundException(`Postulación #${id} no existe.`);
+    return app;
+  }
+
+  async update(id: number, dto: any) {
+    // Las postulaciones usualmente no cambian de relaciones directas, pero guardamos metadatos si fuesen necesarios
+    return this.findOne(id);
+  }
+
+  async remove(id: number) {
+    await this.repo.delete(id);
+    return { message: `Postulación #${id} removida.` };
+  }
+}
 </file>
 
 <file path="src/modules/jobs/dto/create-category.dto.ts">
@@ -878,28 +878,6 @@ import { CreateUserDto } from './create-user.dto';
 export class UpdateUserDto extends PartialType(CreateUserDto) {}
 </file>
 
-<file path="src/modules/users/profiles/dto/create-profile.dto.ts">
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
-
-export class CreateProfileDto {
-  @ApiProperty({ example: 1, description: 'ID del usuario asociado a este perfil' })
-  @IsNumber()
-  @IsNotEmpty()
-  userId: number;
-
-  @ApiProperty({ example: 'Jordi', description: 'Nombre completo del usuario' })
-  @IsString()
-  @IsNotEmpty()
-  fullName: string;
-
-  @ApiProperty({ example: 'Desarrollador Backend NestJS', required: false })
-  @IsString()
-  @IsOptional()
-  bio?: string;
-}
-</file>
-
 <file path="src/modules/users/profiles/dto/update-profile.dto.ts">
 import { PartialType } from '@nestjs/swagger';
 import { CreateProfileDto } from './create-profile.dto';
@@ -926,57 +904,6 @@ export class Profile {
 }
 </file>
 
-<file path="src/modules/users/profiles/profiles.controller.ts">
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
-import { ProfilesService } from './profiles.service';
-import { CreateProfileDto } from './dto/create-profile.dto';
-import { UpdateProfileDto } from './dto/update-profile.dto';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger'; // <- Importante importar esto
-
-@ApiTags('Profiles') // <- La etiqueta de Swagger para esta sección
-@Controller('profiles')
-export class ProfilesController {
-  constructor(private readonly profilesService: ProfilesService) {}
-
-  @Post()
-  @ApiOperation({ summary: 'Crear un nuevo perfil de usuario' })
-  @ApiResponse({ status: 201, description: 'El perfil ha sido creado exitosamente.' })
-  @ApiResponse({ status: 400, description: 'Datos inválidos.' })
-  create(@Body() createProfileDto: CreateProfileDto) {
-    return this.profilesService.create(createProfileDto);
-  }
-
-  @Get()
-  @ApiOperation({ summary: 'Obtener todos los perfiles' })
-  @ApiResponse({ status: 200, description: 'Listado obtenido correctamente.' })
-  findAll() {
-    return this.profilesService.findAll();
-  }
-
-  @Get(':id')
-  @ApiOperation({ summary: 'Obtener un perfil por su ID' })
-  @ApiResponse({ status: 200, description: 'Perfil encontrado.' })
-  @ApiResponse({ status: 404, description: 'Perfil no encontrado.' })
-  findOne(@Param('id') id: string) {
-    return this.profilesService.findOne(+id);
-  }
-
-  @Patch(':id')
-  @ApiOperation({ summary: 'Actualizar un perfil por ID' })
-  @ApiResponse({ status: 200, description: 'Perfil actualizado con éxito.' })
-  update(@Param('id') id: string, @Body() updateProfileDto: UpdateProfileDto) {
-    return this.profilesService.update(+id, updateProfileDto);
-  }
-
-  @Delete(':id')
-  @ApiOperation({ summary: 'Eliminar un perfil por ID' })
-  @ApiResponse({ status: 200, description: 'Perfil eliminado correctamente.' })
-  remove(@Param('id') id: string) {
-    return this.profilesService.remove(+id);
-  }
-}
-</file>
-
 <file path="src/modules/users/profiles/profiles.module.ts">
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -991,51 +918,6 @@ import { Profile } from './entities/profile.entity';
   exports: [ProfilesService],
 })
 export class ProfilesModule {}
-</file>
-
-<file path="src/modules/users/profiles/profiles.service.ts">
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Profile } from './entities/profile.entity';
-import { CreateProfileDto } from './dto/create-profile.dto';
-import { UpdateProfileDto } from './dto/update-profile.dto';
-
-@Injectable()
-export class ProfilesService {
-  constructor(
-    @InjectRepository(Profile)
-    private readonly profileRepository: Repository<Profile>,
-  ) {}
-
-  async create(createProfileDto: CreateProfileDto): Promise<Profile> {
-    const newProfile = this.profileRepository.create({
-      bio: createProfileDto.bio,
-      user: { id: createProfileDto.userId } as any,
-    });
-    return await this.profileRepository.save(newProfile);
-  }
-
-  async findAll(): Promise<Profile[]> {
-    return await this.profileRepository.find({ relations: ['user'] });
-  }
-
-  async findOne(id: number): Promise<Profile> {
-    const profile = await this.profileRepository.findOne({ where: { id }, relations: ['user'] });
-    if (!profile) throw new NotFoundException(`Perfil #${id} no encontrado.`);
-    return profile;
-  }
-
-  async update(id: number, updateProfileDto: UpdateProfileDto) {
-    await this.profileRepository.update(id, { bio: updateProfileDto.bio });
-    return this.findOne(id);
-  }
-
-  async remove(id: number) {
-    await this.profileRepository.delete(id);
-    return { message: `Perfil #${id} eliminado.` };
-  }
-}
 </file>
 
 <file path="test/app.e2e-spec.ts">
@@ -1107,14 +989,6 @@ describe('AppController (e2e)', () => {
     "noFallthroughCasesInSwitch": false
   }
 }
-</file>
-
-<file path=".env.template">
-DB_HOST=localhost
-DB_PORT=5432
-DB_USERNAME=postgres
-DB_PASSWORD=
-DB_NAME=
 </file>
 
 <file path="nest-cli.json">
@@ -1657,6 +1531,124 @@ export class CreateUserDto {
 }
 </file>
 
+<file path="src/modules/users/profiles/dto/create-profile.dto.ts">
+import { ApiProperty } from '@nestjs/swagger';
+import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+
+export class CreateProfileDto {
+  @ApiProperty({ example: 1, description: 'ID del usuario asociado a este perfil' })
+  @IsNumber()
+  @IsNotEmpty()
+  userId: number;
+
+  @ApiProperty({ example: 'Jordi', description: 'Nombre completo del usuario' })
+  @IsString()
+  @IsNotEmpty()
+  fullName: string;
+
+  @ApiProperty({ example: 'Desarrollador Backend NestJS', required: false })
+  @IsString()
+  @IsOptional()
+  bio?: string;
+}
+</file>
+
+<file path="src/modules/users/profiles/profiles.controller.ts">
+import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { ProfilesService } from './profiles.service';
+import { CreateProfileDto } from './dto/create-profile.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger'; // <- Importante importar esto
+
+@ApiTags('Profiles') // <- La etiqueta de Swagger para esta sección
+@Controller('profiles')
+export class ProfilesController {
+  constructor(private readonly profilesService: ProfilesService) {}
+
+  @Post()
+  @ApiOperation({ summary: 'Crear un nuevo perfil de usuario' })
+  @ApiResponse({ status: 201, description: 'El perfil ha sido creado exitosamente.' })
+  @ApiResponse({ status: 400, description: 'Datos inválidos.' })
+  create(@Body() createProfileDto: CreateProfileDto) {
+    return this.profilesService.create(createProfileDto);
+  }
+
+  @Get()
+  @ApiOperation({ summary: 'Obtener todos los perfiles' })
+  @ApiResponse({ status: 200, description: 'Listado obtenido correctamente.' })
+  findAll() {
+    return this.profilesService.findAll();
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Obtener un perfil por su ID' })
+  @ApiResponse({ status: 200, description: 'Perfil encontrado.' })
+  @ApiResponse({ status: 404, description: 'Perfil no encontrado.' })
+  findOne(@Param('id') id: string) {
+    return this.profilesService.findOne(+id);
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: 'Actualizar un perfil por ID' })
+  @ApiResponse({ status: 200, description: 'Perfil actualizado con éxito.' })
+  update(@Param('id') id: string, @Body() updateProfileDto: UpdateProfileDto) {
+    return this.profilesService.update(+id, updateProfileDto);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Eliminar un perfil por ID' })
+  @ApiResponse({ status: 200, description: 'Perfil eliminado correctamente.' })
+  remove(@Param('id') id: string) {
+    return this.profilesService.remove(+id);
+  }
+}
+</file>
+
+<file path="src/modules/users/profiles/profiles.service.ts">
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Profile } from './entities/profile.entity';
+import { CreateProfileDto } from './dto/create-profile.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+
+@Injectable()
+export class ProfilesService {
+  constructor(
+    @InjectRepository(Profile)
+    private readonly profileRepository: Repository<Profile>,
+  ) {}
+
+  async create(createProfileDto: CreateProfileDto): Promise<Profile> {
+    const newProfile = this.profileRepository.create({
+      bio: createProfileDto.bio,
+      user: { id: createProfileDto.userId } as any,
+    });
+    return await this.profileRepository.save(newProfile);
+  }
+
+  async findAll(): Promise<Profile[]> {
+    return await this.profileRepository.find({ relations: ['user'] });
+  }
+
+  async findOne(id: number): Promise<Profile> {
+    const profile = await this.profileRepository.findOne({ where: { id }, relations: ['user'] });
+    if (!profile) throw new NotFoundException(`Perfil #${id} no encontrado.`);
+    return profile;
+  }
+
+  async update(id: number, updateProfileDto: UpdateProfileDto) {
+    await this.profileRepository.update(id, { bio: updateProfileDto.bio });
+    return this.findOne(id);
+  }
+
+  async remove(id: number) {
+    await this.profileRepository.delete(id);
+    return { message: `Perfil #${id} eliminado.` };
+  }
+}
+</file>
+
 <file path="src/modules/users/users.module.ts">
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -1674,6 +1666,14 @@ import { ProfilesModule } from './profiles/profiles.module';
   exports: [UsersService], 
 })
 export class UsersModule {}
+</file>
+
+<file path=".env.template">
+DB_HOST=localhost
+DB_PORT=5432
+DB_USERNAME=postgres
+DB_PASSWORD=
+DB_NAME=
 </file>
 
 <file path="src/auth/auth.controller.ts">
@@ -2046,6 +2046,81 @@ export class User {
 }
 </file>
 
+<file path="src/modules/businesses/business.module.ts">
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Business } from './entities/business.entity';
+import { BusinessService } from './services/business.service'; 
+import { BusinessesController } from './controllers/businesses.controller';
+
+@Module({
+  imports: [TypeOrmModule.forFeature([Business])],
+  controllers: [BusinessesController],
+  providers: [BusinessService],
+  exports: [BusinessService],
+})
+export class BusinessesModule {}
+</file>
+
+<file path="src/modules/businesses/controllers/businesses.controller.ts">
+import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
+import { BusinessService } from '../services/business.service'; // O '../businesses.service' si no lo metiste en carpeta services
+import { CreateBusinessDto } from '../dto/create-business.dto';
+import { UpdateBusinessDto } from '../dto/update-business.dto';
+import { JwtAuthGuard } from '../../../auth/jwt-auth.guard'; // Verifica que esta ruta apunte bien a tu AuthGuard
+
+@ApiTags('Businesses')
+@Controller('businesses')
+export class BusinessesController {
+  constructor(private readonly businessesService: BusinessService) {}
+
+  @Post()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Registrar un nuevo negocio o microempresa (Requiere Autenticación)' })
+  @ApiResponse({ status: 201, description: 'Negocio registrado exitosamente.' })
+  create(@Body() createBusinessDto: CreateBusinessDto) {
+    return this.businessesService.create(createBusinessDto);
+  }
+
+  @Get()
+  @ApiOperation({ summary: 'Obtener la lista de todos los negocios registrados' })
+  @ApiResponse({ status: 200, description: 'Retorna el arreglo de empresas.' })
+  findAll() {
+    return this.businessesService.findAll();
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Obtener los datos de un negocio por su ID' })
+  @ApiParam({ name: 'id', description: 'ID numérico del negocio', example: 1 })
+  @ApiResponse({ status: 200, description: 'Negocio encontrado.' })
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.businessesService.findOne(id);
+  }
+
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Actualizar los datos de un negocio (Requiere Autenticación)' })
+  @ApiParam({ name: 'id', description: 'ID numérico del negocio a editar' })
+  @ApiResponse({ status: 200, description: 'Negocio actualizado correctamente.' })
+  update(@Param('id', ParseIntPipe) id: number, @Body() updateBusinessDto: UpdateBusinessDto) {
+    return this.businessesService.update(id, updateBusinessDto);
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Eliminar un negocio del sistema (Requiere Autenticación)' })
+  @ApiParam({ name: 'id', description: 'ID numérico del negocio a eliminar' })
+  @ApiResponse({ status: 200, description: 'Negocio eliminado exitosamente.' })
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.businessesService.remove(id);
+  }
+}
+</file>
+
 <file path="src/modules/users/services/users.service.ts">
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -2140,81 +2215,6 @@ const config = new DocumentBuilder()
 bootstrap();
 </file>
 
-<file path="src/modules/businesses/business.module.ts">
-import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { Business } from './entities/business.entity';
-import { BusinessService } from './services/business.service'; 
-import { BusinessesController } from './controllers/businesses.controller';
-
-@Module({
-  imports: [TypeOrmModule.forFeature([Business])],
-  controllers: [BusinessesController],
-  providers: [BusinessService],
-  exports: [BusinessService],
-})
-export class BusinessesModule {}
-</file>
-
-<file path="src/modules/businesses/controllers/businesses.controller.ts">
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
-import { BusinessService } from '../services/business.service'; // O '../businesses.service' si no lo metiste en carpeta services
-import { CreateBusinessDto } from '../dto/create-business.dto';
-import { UpdateBusinessDto } from '../dto/update-business.dto';
-import { JwtAuthGuard } from '../../../auth/jwt-auth.guard'; // Verifica que esta ruta apunte bien a tu AuthGuard
-
-@ApiTags('Businesses')
-@Controller('businesses')
-export class BusinessesController {
-  constructor(private readonly businessesService: BusinessService) {}
-
-  @Post()
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Registrar un nuevo negocio o microempresa (Requiere Autenticación)' })
-  @ApiResponse({ status: 201, description: 'Negocio registrado exitosamente.' })
-  create(@Body() createBusinessDto: CreateBusinessDto) {
-    return this.businessesService.create(createBusinessDto);
-  }
-
-  @Get()
-  @ApiOperation({ summary: 'Obtener la lista de todos los negocios registrados' })
-  @ApiResponse({ status: 200, description: 'Retorna el arreglo de empresas.' })
-  findAll() {
-    return this.businessesService.findAll();
-  }
-
-  @Get(':id')
-  @ApiOperation({ summary: 'Obtener los datos de un negocio por su ID' })
-  @ApiParam({ name: 'id', description: 'ID numérico del negocio', example: 1 })
-  @ApiResponse({ status: 200, description: 'Negocio encontrado.' })
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.businessesService.findOne(id);
-  }
-
-  @Patch(':id')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Actualizar los datos de un negocio (Requiere Autenticación)' })
-  @ApiParam({ name: 'id', description: 'ID numérico del negocio a editar' })
-  @ApiResponse({ status: 200, description: 'Negocio actualizado correctamente.' })
-  update(@Param('id', ParseIntPipe) id: number, @Body() updateBusinessDto: UpdateBusinessDto) {
-    return this.businessesService.update(id, updateBusinessDto);
-  }
-
-  @Delete(':id')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Eliminar un negocio del sistema (Requiere Autenticación)' })
-  @ApiParam({ name: 'id', description: 'ID numérico del negocio a eliminar' })
-  @ApiResponse({ status: 200, description: 'Negocio eliminado exitosamente.' })
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.businessesService.remove(id);
-  }
-}
-</file>
-
 <file path="src/modules/businesses/services/business.service.ts">
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -2270,10 +2270,10 @@ import { JobsController } from './jobs.controller';
 import { JobsService } from './jobs.service';
 import { Job } from './entities/job.entity';
 import { JobCategory } from './entities/job-category.entity';
-import { JobApplication } from './entities/job-application.entity'; // <-- Importa tu nueva entidad
+import { JobApplication } from '../job-applications/entities/job-application.entity'; 
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Job, JobCategory, JobApplication])], // <-- Regístrala aquí en el arreglo
+  imports: [TypeOrmModule.forFeature([Job, JobCategory, JobApplication])],
   controllers: [JobsController],
   providers: [JobsService],
   exports: [JobsService],

@@ -37,6 +37,7 @@ export class JobsService {
 
     return await query.getMany();
   }
+    
 
   async create(createJobDto: CreateJobDto) {
     try {
