@@ -1,10 +1,13 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
 import { JobApplicationsService } from './job-applications.service';
 import { CreateJobApplicationDto } from './dto/create-job-application.dto';
 import { UpdateJobApplicationDto } from './dto/update-job-application.dto';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiResponse, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { UserRoleGuard } from '../../auth/guards/user-role.guard';
 
 @ApiTags('Job Applications') // Etiqueta solicitada en la tarjeta de Trello
+@ApiBearerAuth() // <- Agrega el candadito en la interfaz de Swagger
+@UseGuards(UseGuards) // <- Candado maestro: protege TODAS las rutas de abajo
 @Controller('job-applications')
 export class JobApplicationsController {
   constructor(private readonly jobApplicationsService: JobApplicationsService) {}
