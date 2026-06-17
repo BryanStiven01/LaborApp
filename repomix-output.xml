@@ -495,19 +495,25 @@ export class AuthService {
     private readonly jwtService: JwtService, 
   ) {}
 
-  // ==========================================
+// ==========================================
   // LÓGICA DE REGISTRO
   // ==========================================
   async register(registerDto: RegisterDto) {
-    // EXTRAEMOS TODOS LOS CAMPOS NUEVOS
-    const { email, password, role, department, municipality, first_name, last_name } = registerDto;
+    const newUser = await this.usersService.create(registerDto);
+    return {
+      message: 'Usuario registrado exitosamente de forma segura.',
+      user: {
+        id: newUser.id,
+        email: newUser.email,
+        role: newUser.role,
+      },
+    };
+  }
 
-    const users = await this.usersService.findAll();
-    const userExists = users.find((u: any) => u.email === email);
-    
-    if (userExists) {
-      throw new BadRequestException('El correo electrónico ya se encuentra registrado.');
-    }
+  async registerWithHash(password: string, email: string, role: string, department: string, municipality: string, first_name: string, last_name: string) {
+    if (!password || !email || !role || !department || !municipality || !first_name || !last_name) {
+      throw new BadRequestException('Todos los campos son obligatorios.');
+  }
 
     const passwordHash = crypto.createHash('sha256').update(password).digest('hex');
 
@@ -627,8 +633,8 @@ export class RegisterDto {
 
   @ApiProperty({ example: 'Empleador', description: 'Rol en la plataforma' })
   @IsString()
-  @IsIn([ValidRoles.empleador, ValidRoles.trabajador], {
-    message: `El rol debe ser exactamente: ${ValidRoles.empleador} o ${ValidRoles.trabajador}`,
+  @IsIn([ValidRoles.empleador, ValidRoles.trabajador, ValidRoles.administrador], {
+    message: `El rol debe ser exactamente: ${ValidRoles.empleador} o ${ValidRoles.trabajador} o ${ValidRoles.administrador}.`,
   })
   role!: string;
 
@@ -1160,57 +1166,6 @@ export class JobApplication {
 }
 </file>
 
-<file path="src/modules/job-applications/job-applications.controller.ts">
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
-import { JobApplicationsService } from './job-applications.service';
-import { CreateJobApplicationDto } from './dto/create-job-application.dto';
-import { UpdateJobApplicationDto } from './dto/update-job-application.dto';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-
-@ApiTags('Job Applications') // Etiqueta solicitada en la tarjeta de Trello
-@Controller('job-applications')
-export class JobApplicationsController {
-  constructor(private readonly jobApplicationsService: JobApplicationsService) {}
-
-  @Post()
-  @ApiOperation({ summary: 'Crear una nueva postulación a empleo' })
-  @ApiResponse({ status: 201, description: 'La postulación ha sido creada exitosamente.' })
-  @ApiResponse({ status: 400, description: 'Datos de postulación inválidos.' })
-  create(@Body() createJobApplicationDto: CreateJobApplicationDto) {
-    return this.jobApplicationsService.create(createJobApplicationDto);
-  }
-
-  @Get()
-  @ApiOperation({ summary: 'Obtener todas las postulaciones' })
-  @ApiResponse({ status: 200, description: 'Listado de postulaciones obtenido correctamente.' })
-  findAll() {
-    return this.jobApplicationsService.findAll();
-  }
-
-  @Get(':id')
-  @ApiOperation({ summary: 'Obtener una postulación por su ID' })
-  @ApiResponse({ status: 200, description: 'Postulación encontrada.' })
-  @ApiResponse({ status: 404, description: 'Postulación no encontrada.' })
-  findOne(@Param('id') id: string) {
-    return this.jobApplicationsService.findOne(+id);
-  }
-
-  @Patch(':id')
-  @ApiOperation({ summary: 'Actualizar una postulación por ID' })
-  @ApiResponse({ status: 200, description: 'Postulación actualizada con éxito.' })
-  update(@Param('id') id: string, @Body() updateJobApplicationDto: UpdateJobApplicationDto) {
-    return this.jobApplicationsService.update(+id, updateJobApplicationDto);
-  }
-
-  @Delete(':id')
-  @ApiOperation({ summary: 'Eliminar una postulación por ID' })
-  @ApiResponse({ status: 200, description: 'Postulación eliminada correctamente.' })
-  remove(@Param('id') id: string) {
-    return this.jobApplicationsService.remove(+id);
-  }
-}
-</file>
-
 <file path="src/modules/job-applications/job-applications.module.ts">
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -1239,14 +1194,17 @@ export class JobApplicationsService {
     private readonly repo: Repository<JobApplication>,
   ) {}
 
-  async create(dto: any): Promise<JobApplication> {
+async create(dto: any): Promise<JobApplication> {
     const newApp = this.repo.create({
+      jobId: dto.jobId,              // <-- Añadimos esta línea
+      applicantId: dto.candidateId,  // <-- Añadimos esta línea
       job: { id: dto.jobId } as any,
       applicant: { id: dto.candidateId } as any,
     });
     return await this.repo.save(newApp);
   }
 
+  
   async findAll(): Promise<JobApplication[]> {
     return await this.repo.find({ relations: ['job', 'applicant'] });
   }
@@ -1952,18 +1910,6 @@ export class Rating {
 }
 </file>
 
-<file path="src/modules/ratings/ratings.controller.ts">
-import { Controller } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
-import { RatingsService } from './ratings.service'; // Ruta directa
-
-@ApiTags('Ratings')
-@Controller('ratings')
-export class RatingsController {
-  constructor(private readonly ratingsService: RatingsService) {}
-}
-</file>
-
 <file path="src/modules/ratings/ratings.module.ts">
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -2054,61 +2000,6 @@ export class Sector {
 
   @UpdateDateColumn()
   updatedAt: Date;
-}
-</file>
-
-<file path="src/modules/sector/sector.controller.ts">
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseUUIDPipe } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
-import { SectorService } from './sector.service';
-import { CreateSectorDto } from './dto/create-sector.dto';
-import { UpdateSectorDto } from './dto/update-sector.dto';
-
-@ApiTags('Sectors') // <-- Agrupa los endpoints en una sección limpia
-@Controller('sectors')
-export class SectorController {
-  constructor(private readonly sectorService: SectorService) {}
-
-  @Post()
-  @ApiOperation({ summary: 'Crear un nuevo sector económico' })
-  @ApiResponse({ status: 201, description: 'Sector creado exitosamente.' })
-  @ApiResponse({ status: 400, description: 'Ya existe un sector con este nombre.' })
-  create(@Body() createSectorDto: CreateSectorDto) {
-    return this.sectorService.create(createSectorDto);
-  }
-
-  @Get()
-  @ApiOperation({ summary: 'Obtener todos los sectores activos (status: true)' })
-  @ApiResponse({ status: 200, description: 'Lista de sectores recuperada con éxito.' })
-  findAll() {
-    return this.sectorService.findAll();
-  }
-
-  @Get(':id')
-  @ApiOperation({ summary: 'Obtener un sector específico por su ID (UUID)' })
-  @ApiParam({ name: 'id', description: 'ID único del sector en formato UUID' })
-  @ApiResponse({ status: 200, description: 'Sector encontrado.' })
-  @ApiResponse({ status: 404, description: 'Sector no encontrado o se encuentra inactivo.' })
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.sectorService.findOne(id);
-  }
-
-  @Patch(':id')
-  @ApiOperation({ summary: 'Actualizar los datos de un sector' })
-  @ApiParam({ name: 'id', description: 'ID del sector a modificar' })
-  @ApiResponse({ status: 200, description: 'Sector actualizado correctamente.' })
-  @ApiResponse({ status: 404, description: 'No se pudo actualizar porque el sector no existe.' })
-  update(@Param('id', ParseUUIDPipe) id: string, @Body() updateSectorDto: UpdateSectorDto) {
-    return this.sectorService.update(id, updateSectorDto);
-  }
-
-  @Delete(':id')
-  @ApiOperation({ summary: 'Eliminar lógicamente un sector' })
-  @ApiParam({ name: 'id', description: 'ID del sector a desactivar' })
-  @ApiResponse({ status: 200, description: 'Sector desactivado con éxito (status cambiado a false).' })
-  remove(@Param('id', ParseUUIDPipe) id: string) {
-    return this.sectorService.remove(id);
-  }
 }
 </file>
 
@@ -2248,43 +2139,40 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsEmail, IsNotEmpty, IsString, Length } from 'class-validator';
 
 export class CreateUserDto {
-  @ApiProperty({ 
-    example: 'trabajador@correo.com', 
-    description: 'Correo electrónico único de acceso' 
-  })
+  @ApiProperty({ example: 'trabajador@correo.com', description: 'Correo electrónico único de acceso' })
   @IsEmail()
   @IsNotEmpty()
   email: string;
 
-  @ApiProperty({ 
-    example: 'ContraseñaSegura123', 
-    description: 'Contraseña en texto plano' 
-  })
+  @ApiProperty({ example: 'ContraseñaSegura123', description: 'Contraseña en texto plano' })
   @IsString()
   @IsNotEmpty()
   @Length(6, 20)
   password: string;
 
-  @ApiProperty({ 
-    example: 'Worker', 
-    description: 'Rol del usuario: Admin, Employer o Worker' 
-  })
+  // --- AGREGA ESTAS DOS PROPIEDADES ---
+  @ApiProperty({ example: 'Jordi', description: 'Nombre del usuario' })
+  @IsString()
+  @IsNotEmpty()
+  first_name: string;
+
+  @ApiProperty({ example: 'Vargas', description: 'Apellido del usuario' })
+  @IsString()
+  @IsNotEmpty()
+  last_name: string;
+  // ------------------------------------
+
+  @ApiProperty({ example: 'Worker', description: 'Rol del usuario: Admin, Employer o Worker' })
   @IsString()
   @IsNotEmpty()
   role: string;
 
-  @ApiProperty({ 
-    example: 'Zelaya Central', 
-    description: 'Departamento para el filtro geográfico' 
-  })
+  @ApiProperty({ example: 'Zelaya Central', description: 'Departamento para el filtro geográfico' })
   @IsString()
   @IsNotEmpty()
   department: string;
 
-  @ApiProperty({ 
-    example: 'Nueva Guinea', 
-    description: 'Municipio de residencia' 
-  })
+  @ApiProperty({ example: 'Nueva Guinea', description: 'Municipio de residencia' })
   @IsString()
   @IsNotEmpty()
   municipality: string;
@@ -2396,23 +2284,44 @@ export class User {
 
 <file path="src/modules/users/profiles/dto/create-profile.dto.ts">
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class CreateProfileDto {
-  @ApiProperty({ example: 1, description: 'ID del usuario asociado a este perfil' })
+  @ApiProperty({ example: 1, description: 'ID del usuario asociado' })
   @IsNumber()
   @IsNotEmpty()
   userId: number;
 
-  @ApiProperty({ example: 'Jordi', description: 'Nombre completo del usuario' })
+  @ApiProperty({ example: 'Jordi', description: 'Nombre completo' })
   @IsString()
   @IsNotEmpty()
   fullName: string;
 
-  @ApiProperty({ example: 'Desarrollador Backend NestJS', required: false })
+  @ApiProperty({ required: false })
   @IsString()
   @IsOptional()
   bio?: string;
+
+  // --- CAMPOS NUEVOS AÑADIDOS ---
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  profileType?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  phone?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  servicesOffered?: string;
+
+  @ApiProperty({ required: false })
+  @IsBoolean()
+  @IsOptional()
+  isPublic?: boolean;
 }
 </file>
 
@@ -2456,57 +2365,6 @@ export class Profile {
 }
 </file>
 
-<file path="src/modules/users/profiles/profiles.controller.ts">
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
-import { ProfilesService } from './profiles.service';
-import { CreateProfileDto } from './dto/create-profile.dto';
-import { UpdateProfileDto } from './dto/update-profile.dto';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger'; // <- Importante importar esto
-
-@ApiTags('Profiles') // <- La etiqueta de Swagger para esta sección
-@Controller('profiles')
-export class ProfilesController {
-  constructor(private readonly profilesService: ProfilesService) {}
-
-  @Post()
-  @ApiOperation({ summary: 'Crear un nuevo perfil de usuario' })
-  @ApiResponse({ status: 201, description: 'El perfil ha sido creado exitosamente.' })
-  @ApiResponse({ status: 400, description: 'Datos inválidos.' })
-  create(@Body() createProfileDto: CreateProfileDto) {
-    return this.profilesService.create(createProfileDto);
-  }
-
-  @Get()
-  @ApiOperation({ summary: 'Obtener todos los perfiles' })
-  @ApiResponse({ status: 200, description: 'Listado obtenido correctamente.' })
-  findAll() {
-    return this.profilesService.findAll();
-  }
-
-  @Get(':id')
-  @ApiOperation({ summary: 'Obtener un perfil por su ID' })
-  @ApiResponse({ status: 200, description: 'Perfil encontrado.' })
-  @ApiResponse({ status: 404, description: 'Perfil no encontrado.' })
-  findOne(@Param('id') id: string) {
-    return this.profilesService.findOne(+id);
-  }
-
-  @Patch(':id')
-  @ApiOperation({ summary: 'Actualizar un perfil por ID' })
-  @ApiResponse({ status: 200, description: 'Perfil actualizado con éxito.' })
-  update(@Param('id') id: string, @Body() updateProfileDto: UpdateProfileDto) {
-    return this.profilesService.update(+id, updateProfileDto);
-  }
-
-  @Delete(':id')
-  @ApiOperation({ summary: 'Eliminar un perfil por ID' })
-  @ApiResponse({ status: 200, description: 'Perfil eliminado correctamente.' })
-  remove(@Param('id') id: string) {
-    return this.profilesService.remove(+id);
-  }
-}
-</file>
-
 <file path="src/modules/users/profiles/profiles.module.ts">
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -2537,15 +2395,15 @@ export class ProfilesService {
     @InjectRepository(Profile)
     private readonly profileRepository: Repository<Profile>,
   ) {}
-
-  async create(createProfileDto: CreateProfileDto): Promise<Profile> {
+async create(createProfileDto: CreateProfileDto): Promise<Profile> {
+    const { userId, ...profileData } = createProfileDto;
+    
     const newProfile = this.profileRepository.create({
-      bio: createProfileDto.bio,
-      user: { id: createProfileDto.userId } as any,
+      ...profileData, // Guarda todos los campos (bio, phone, profileType, etc)
+      user: { id: userId } as any,
     });
     return await this.profileRepository.save(newProfile);
   }
-
   async findAll(): Promise<Profile[]> {
     return await this.profileRepository.find({ relations: ['user'] });
   }
@@ -2556,8 +2414,9 @@ export class ProfilesService {
     return profile;
   }
 
-  async update(id: number, updateProfileDto: UpdateProfileDto) {
-    await this.profileRepository.update(id, { bio: updateProfileDto.bio });
+async update(id: number, updateProfileDto: UpdateProfileDto) {
+  // Ahora actualiza cualquier campo que le mandes, no solo la bio
+    await this.profileRepository.update(id, updateProfileDto);
     return this.findOne(id);
   }
 
@@ -2718,6 +2577,207 @@ describe('AppController (e2e)', () => {
     "noImplicitAny": false,
     "strictBindCallApply": false,
     "noFallthroughCasesInSwitch": false
+  }
+}
+</file>
+
+<file path="src/modules/job-applications/job-applications.controller.ts">
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import { JobApplicationsService } from './job-applications.service';
+import { CreateJobApplicationDto } from './dto/create-job-application.dto';
+import { UpdateJobApplicationDto } from './dto/update-job-application.dto';
+import { ApiOperation, ApiResponse, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { UserRoleGuard } from '../../auth/guards/user-role.guard';
+
+@ApiTags('Job Applications') // Etiqueta solicitada en la tarjeta de Trello
+@ApiBearerAuth() // <- Agrega el candadito en la interfaz de Swagger
+@UseGuards(UseGuards) // <- Candado maestro: protege TODAS las rutas de abajo
+@Controller('job-applications')
+export class JobApplicationsController {
+  constructor(private readonly jobApplicationsService: JobApplicationsService) {}
+
+  @Post()
+  @ApiOperation({ summary: 'Crear una nueva postulación a empleo' })
+  @ApiResponse({ status: 201, description: 'La postulación ha sido creada exitosamente.' })
+  @ApiResponse({ status: 400, description: 'Datos de postulación inválidos.' })
+  create(@Body() createJobApplicationDto: CreateJobApplicationDto) {
+    return this.jobApplicationsService.create(createJobApplicationDto);
+  }
+
+  @Get()
+  @ApiOperation({ summary: 'Obtener todas las postulaciones' })
+  @ApiResponse({ status: 200, description: 'Listado de postulaciones obtenido correctamente.' })
+  findAll() {
+    return this.jobApplicationsService.findAll();
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Obtener una postulación por su ID' })
+  @ApiResponse({ status: 200, description: 'Postulación encontrada.' })
+  @ApiResponse({ status: 404, description: 'Postulación no encontrada.' })
+  findOne(@Param('id') id: string) {
+    return this.jobApplicationsService.findOne(+id);
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: 'Actualizar una postulación por ID' })
+  @ApiResponse({ status: 200, description: 'Postulación actualizada con éxito.' })
+  update(@Param('id') id: string, @Body() updateJobApplicationDto: UpdateJobApplicationDto) {
+    return this.jobApplicationsService.update(+id, updateJobApplicationDto);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Eliminar una postulación por ID' })
+  @ApiResponse({ status: 200, description: 'Postulación eliminada correctamente.' })
+  remove(@Param('id') id: string) {
+    return this.jobApplicationsService.remove(+id);
+  }
+}
+</file>
+
+<file path="src/modules/ratings/ratings.controller.ts">
+import { Controller, UseGuards } from '@nestjs/common'; // <-- Agregamos UseGuards aquí
+import { ApiTags } from '@nestjs/swagger';
+import { RatingsService } from './ratings.service';
+import { UserRoleGuard } from '../../auth/guards/user-role.guard';
+
+@ApiTags('Ratings')
+@UseGuards(UserRoleGuard) // <-- Candado maestro activado
+@Controller('ratings')
+export class RatingsController {
+  constructor(private readonly ratingsService: RatingsService) {}
+
+  // Cuando comiences a programar tus endpoints aquí adentro (@Post, @Get, etc.), 
+  // ya estarán 100% protegidos obligando a usar el Token JWT.
+}
+</file>
+
+<file path="src/modules/sector/sector.controller.ts">
+import { Controller, Get, Post, Body, Patch, Param, Delete, ParseUUIDPipe, UseGuards } from '@nestjs/common'; // <- Agregado UseGuards
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger'; // <- Agregado ApiBearerAuth
+import { SectorService } from './sector.service';
+import { CreateSectorDto } from './dto/create-sector.dto';
+import { UpdateSectorDto } from './dto/update-sector.dto';
+import { UserRoleGuard } from '../../auth/guards/user-role.guard';
+
+@ApiTags('Sectors')
+@Controller('sectors')
+export class SectorController {
+  constructor(private readonly sectorService: SectorService) {}
+
+  //  PRIVADO: Solo usuarios con token (Administradores) pueden crear sectores
+  @UseGuards(UserRoleGuard)
+  @ApiBearerAuth()
+  @Post()
+  @ApiOperation({ summary: 'Crear un nuevo sector económico' })
+  @ApiResponse({ status: 201, description: 'Sector creado exitosamente.' })
+  @ApiResponse({ status: 400, description: 'Ya existe un sector con este nombre.' })
+  create(@Body() createSectorDto: CreateSectorDto) {
+    return this.sectorService.create(createSectorDto);
+  }
+
+  //  PÚBLICO: Cualquiera puede ver los sectores activos
+  @Get()
+  @ApiOperation({ summary: 'Obtener todos los sectores activos (status: true)' })
+  @ApiResponse({ status: 200, description: 'Lista de sectores recuperada con éxito.' })
+  findAll() {
+    return this.sectorService.findAll();
+  }
+
+  //  PÚBLICO: Cualquiera puede buscar un sector específico
+  @Get(':id')
+  @ApiOperation({ summary: 'Obtener un sector específico por su ID (UUID)' })
+  @ApiParam({ name: 'id', description: 'ID único del sector en formato UUID' })
+  @ApiResponse({ status: 200, description: 'Sector encontrado.' })
+  @ApiResponse({ status: 404, description: 'Sector no encontrado o se encuentra inactivo.' })
+  findOne(@Param('id', ParseUUIDPipe) id: string) {
+    return this.sectorService.findOne(id);
+  }
+
+  //  PRIVADO: Solo usuarios con token pueden modificar un sector
+  @UseGuards(UserRoleGuard)
+  @ApiBearerAuth()
+  @Patch(':id')
+  @ApiOperation({ summary: 'Actualizar los datos de un sector' })
+  @ApiParam({ name: 'id', description: 'ID del sector a modificar' })
+  @ApiResponse({ status: 200, description: 'Sector actualizado correctamente.' })
+  @ApiResponse({ status: 404, description: 'No se pudo actualizar porque el sector no existe.' })
+  update(@Param('id', ParseUUIDPipe) id: string, @Body() updateSectorDto: UpdateSectorDto) {
+    return this.sectorService.update(id, updateSectorDto);
+  }
+
+  //  PRIVADO: Solo usuarios con token pueden desactivar un sector
+  @UseGuards(UserRoleGuard)
+  @ApiBearerAuth()
+  @Delete(':id')
+  @ApiOperation({ summary: 'Eliminar lógicamente un sector' })
+  @ApiParam({ name: 'id', description: 'ID del sector a desactivar' })
+  @ApiResponse({ status: 200, description: 'Sector desactivado con éxito (status cambiado a false).' })
+  remove(@Param('id', ParseUUIDPipe) id: string) {
+    return this.sectorService.remove(id);
+  }
+}
+</file>
+
+<file path="src/modules/users/profiles/profiles.controller.ts">
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common'; // <- Agregamos UseGuards
+import { ProfilesService } from './profiles.service';
+import { CreateProfileDto } from './dto/create-profile.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ApiOperation, ApiResponse, ApiTags, ApiBearerAuth } from '@nestjs/swagger'; // <- Agregamos ApiBearerAuth
+import { UserRoleGuard } from '../../../auth/guards/user-role.guard';
+
+@ApiTags('Profiles')
+@Controller('profiles')
+export class ProfilesController {
+  constructor(private readonly profilesService: ProfilesService) {}
+
+  //  RUTA PRIVADA: Solo alguien logueado puede crear su perfil
+  @UseGuards(UserRoleGuard)
+  @ApiBearerAuth() 
+  @Post()
+  @ApiOperation({ summary: 'Crear un nuevo perfil de usuario' })
+  @ApiResponse({ status: 201, description: 'El perfil ha sido creado exitosamente.' })
+  @ApiResponse({ status: 400, description: 'Datos inválidos.' })
+  create(@Body() createProfileDto: CreateProfileDto) {
+    return this.profilesService.create(createProfileDto);
+  }
+
+  //  RUTA PÚBLICA: Cualquier persona o empresa visitante puede ver el catálogo de trabajadores
+  @Get()
+  @ApiOperation({ summary: 'Obtener todos los perfiles' })
+  @ApiResponse({ status: 200, description: 'Listado obtenido correctamente.' })
+  findAll() {
+    return this.profilesService.findAll();
+  }
+
+  //  RUTA PÚBLICA: Ver el detalle de un trabajador específico
+  @Get(':id')
+  @ApiOperation({ summary: 'Obtener un perfil por su ID' })
+  @ApiResponse({ status: 200, description: 'Perfil encontrado.' })
+  @ApiResponse({ status: 404, description: 'Perfil no encontrado.' })
+  findOne(@Param('id') id: string) {
+    return this.profilesService.findOne(+id);
+  }
+
+  //  RUTA PRIVADA: Solo el dueño del perfil (o admin) debería poder actualizarlo
+  @UseGuards(UserRoleGuard)
+  @ApiBearerAuth()
+  @Patch(':id')
+  @ApiOperation({ summary: 'Actualizar un perfil por ID' })
+  @ApiResponse({ status: 200, description: 'Perfil actualizado con éxito.' })
+  update(@Param('id') id: string, @Body() updateProfileDto: UpdateProfileDto) {
+    return this.profilesService.update(+id, updateProfileDto);
+  }
+
+  // RUTA PRIVADA: Protección total para no borrar perfiles por accidente
+  @UseGuards(UserRoleGuard)
+  @ApiBearerAuth()
+  @Delete(':id')
+  @ApiOperation({ summary: 'Eliminar un perfil por ID' })
+  @ApiResponse({ status: 200, description: 'Perfil eliminado correctamente.' })
+  remove(@Param('id') id: string) {
+    return this.profilesService.remove(+id);
   }
 }
 </file>

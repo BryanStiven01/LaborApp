@@ -1,12 +1,10 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Job } from './entities/job.entity';
 import { JobCategory } from './entities/job-category.entity';
-import { CreateJobDto } from './dto/create-job.dto'; // Importamos tu DTO
+import { CreateJobDto } from './dto/create-job.dto';
 import { UpdateJobDto } from './dto/update-job.dto';
-
-
 
 @Injectable()
 export class JobsService {
@@ -40,22 +38,22 @@ export class JobsService {
 
   async create(createJobDto: CreateJobDto) {
     try {
-      // 1. Sacamos el salary del DTO junto a los otros IDs
+      // 1. Desestructuramos los IDs del DTO de forma limpia
       const { employerId, categoryId, businessId, salary, ...jobData } = createJobDto;
 
+      // 2. Mapeamos de forma explícita las relaciones sin usar 'as unknown as Job'
       const newJob = this.jobRepository.create({
         ...jobData,
-        // 2. Convertimos el salary a número usando Number() para que TypeScript no se queje
-        salary: salary ? Number(salary) : null, 
+        employerId: Number(employerId),
         employer: { id: employerId },
         category: { id: categoryId },
-        business: businessId ? { id: businessId } : null,
-      } as unknown as Job); // 3. Le aseguramos a TypeORM que este objeto cumple con la entidad Job
+        business: businessId ? { id: businessId } : undefined,
+      });
 
       return await this.jobRepository.save(newJob);
     } catch (error) {
       console.error('🔴 ERROR AL CREAR EMPLEO:', error);
-      throw error;
+      throw new InternalServerErrorException('Error al guardar la vacante de empleo en la base de datos.');
     }
   }
 
@@ -73,16 +71,17 @@ export class JobsService {
       throw new BadRequestException('Error al crear la categoría. Asegúrese de que el nombre sea único.');
     }
   }
+
   // ==========================================
   // NUEVO: ACTUALIZAR EMPLEO
   // ==========================================
   update(id: number, updateJobDto: UpdateJobDto) {
-    // Simulamos la actualización temporalmente para que compile en verde
     return {
       message: `El anuncio #${id} ha sido actualizado correctamente.`,
       dataActualizada: updateJobDto
     };
   }
+
   // NUEVO: ELIMINAR EMPLEO
   remove(id: number) {
     return { message: `El anuncio de empleo #${id} ha sido eliminado del sistema.` };
