@@ -30,14 +30,20 @@ Siga estos 5 pasos para levantar el proyecto en su entorno local:
 Descargue el código fuente y acceda a la carpeta del proyecto:
 git clone https://github.com/BryanStiven01/LaborApp.git)
 cd LaborApp
-2. Instalar dependencias
+
+
+3. Instalar dependencias
 Instale los módulos de Node.js necesarios para ejecutar la API:
 
 npm install
+
+
 3. Configurar variables de entorno
 En la raíz del proyecto, busque el archivo .env.template.
 Saque una copia de ese archivo y renómbrela exactamente como .env.
 Abra el archivo .env y coloque sus credenciales locales de PostgreSQL:
+
+
 PORT=3000
 DB_HOST=localhost
 DB_PORT=5432
@@ -45,13 +51,23 @@ DB_USERNAME=postgres
 DB_PASSWORD=Tu_Contraseña_De_Postgres
 DB_NAME=laborapps_db
 JWT_SECRET=ClaveSecretaSuperSegura123
-4. Inicializar la Base de Datos
+
+
+5. Inicializar la Base de Datos
 Abra DBeaver o su gestor de confianza.
 Cree una base de datos vacía llamada exactamente igual a la de su archivo .env (laborapps_db).
 Nota: No necesita crear tablas manualmente; TypeORM estructurará automáticamente las entidades, llaves foráneas y relaciones al iniciar el servidor.
-5. Levantar el Servidor
+
+
+7. Levantar el Servidor
 Inicie la API en modo de desarrollo:
+
+
 5. Levantar el Servidor
-Inicie la API en modo de desarrollo:
+ 
+6.  Inicie la API en modo de desarrollo
+
 npm run start:dev
+
+
 La API estará escuchando peticiones en: http://localhost:3000
