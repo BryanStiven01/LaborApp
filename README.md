@@ -16,6 +16,8 @@ Backend desarrollado con **NestJS** y **PostgreSQL** para la plataforma LaborApp
 ## 📂 Estructura Modular del Proyecto
 El sistema implementa una estricta separación de responsabilidades dividida en módulos independientes:
 
+
+```text
 src/
 └── modules/
     ├── auth/         # Autenticación, JWT y Estrategias
@@ -23,6 +25,8 @@ src/
     ├── profiles/     # Perfiles públicos de trabajadores independientes
     ├── jobs/         # Ofertas de trabajo (Permanentes y Oficios Diarios)
     └── ratings/      # Sistema de calificaciones (Escala 1 a 5)
+```
+
 
 🚀 Guía Rápida de Instalación
 Siga estos 5 pasos para levantar el proyecto en su entorno local:
@@ -35,7 +39,7 @@ cd LaborApp
 3. Instalar dependencias
 Instale los módulos de Node.js necesarios para ejecutar la API:
 
-npm install
+-npm install
 
 
 3. Configurar variables de entorno
