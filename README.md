@@ -20,11 +20,14 @@ El sistema implementa una estricta separación de responsabilidades dividida en 
 ```text
 src/
 └── modules/
-    ├── auth/         # Autenticación, JWT y Estrategias
-    ├── users/        # Gestión de cuentas generales
-    ├── profiles/     # Perfiles públicos de trabajadores independientes
-    ├── jobs/         # Ofertas de trabajo (Permanentes y Oficios Diarios)
-    └── ratings/      # Sistema de calificaciones (Escala 1 a 5)
+    ├── auth/           # Autenticación, JWT y Estrategias de Seguridad
+    ├── users/          # Gestión de cuentas generales de usuarios
+    ├── profiles/       # Perfiles públicos de trabajadores independientes
+    ├── businesses/     # Gestión de perfiles de empresas y empleadores
+    ├── jobs/           # Ofertas de trabajo (Permanentes y Oficios Diarios)
+    ├── ratings/        # Sistema de calificaciones y reseñas (Escala 1 a 5)
+    ├── conversations/  # Gestión de hilos de chat entre usuarios
+    └── messages/       # Manejo e intercambio
 ```
 
 
